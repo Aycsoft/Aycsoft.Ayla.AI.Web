@@ -5,8 +5,10 @@ import { resolveTerminalMessageStatus, unwrapAgentEvent } from '@/api/sse'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 import { createGenerationPlaceholder, removeGenerationPlaceholder, settleRunningTraces, updateGenerationPlaceholder } from '@/utils/streamLifecycle'
-import { createSingleFlight, findReusableEmptyConversation } from '@/utils/emptyConversation'
+import { createSingleFlight, findReusableEmptyConversation, syncConversationMessageState } from '@/utils/emptyConversation'
 import { conversationRunStatus, type ConversationRunStatus } from '@/utils/conversationRunStatus'
+import { collectWorkspaceArtifacts } from '@/utils/messageAttachments'
+import { createUuid } from '@/utils/uuid'
 import type { Artifact, Assistant, Attachment, ChatOptions, Conversation, Message, ParsedSseEvent, TraceStep } from '@/types/ai'
 
 const record = (data: unknown) => (data && typeof data === 'object' ? data as Record<string, any> : {})
@@ -46,11 +48,11 @@ export const useChatStore = defineStore('chat', () => {
     currentId.value = id; traces.value = []; artifacts.value = []; lastError.value = ''
     const response = await aiApi.messages(id)
     messages.value = Array.isArray(response) ? response : response.Items
+    const selectedConversation = conversations.value.find(item => item.Id === id)
+    syncConversationMessageState(selectedConversation, messages.value.length)
     const latest = [...messages.value].reverse().find(x => x.Role === 'assistant')
     traces.value = latest?.AgentRun?.Steps || []
-    artifacts.value = messages.value.flatMap(message => message.Role === 'assistant'
-      ? [...(message.Artifacts || []), ...(message.AgentRun?.Artifacts || [])]
-      : []).filter((item, index, all) => all.findIndex(candidate => candidate.ArtifactId === item.ArtifactId) === index)
+    artifacts.value = collectWorkspaceArtifacts(messages.value)
   }
 
   async function hydrateActiveConversation() {
@@ -59,11 +61,10 @@ export const useChatStore = defineStore('chat', () => {
     const persisted = Array.isArray(response) ? response : response.Items
     if (!persisted.length) return
     messages.value = persisted
+    syncConversationMessageState(current.value, persisted.length)
     const latest = [...persisted].reverse().find(item => item.Role === 'assistant')
     if (latest?.AgentRun?.Steps?.length) traces.value = latest.AgentRun.Steps
-    artifacts.value = persisted.flatMap(message => message.Role === 'assistant'
-      ? [...(message.Artifacts || []), ...(message.AgentRun?.Artifacts || [])]
-      : []).filter((item, index, all) => all.findIndex(candidate => candidate.ArtifactId === item.ArtifactId) === index)
+    artifacts.value = collectWorkspaceArtifacts(persisted)
   }
 
   async function createInternal(): Promise<Conversation> {
@@ -79,7 +80,7 @@ export const useChatStore = defineStore('chat', () => {
       AssistantId: selected.Id,
       Title: '新会话',
       Source: 'ai-web',
-      IdempotencyKey: crypto.randomUUID()
+      IdempotencyKey: createUuid()
     })
     conversations.value.unshift(conversation); currentId.value = conversation.Id; messages.value = []; traces.value = []; artifacts.value = []
     return conversation
@@ -105,7 +106,7 @@ export const useChatStore = defineStore('chat', () => {
     else if (event.event === 'citation' || event.event === 'web-source') (assistantMessage.Citations ||= []).push(data)
     else if (event.event === 'tool') {
       removeGenerationPlaceholder(traces.value)
-      const invocation = String(pick(data, 'InvocationId', 'invocationId') || pick(data, 'ToolCode', 'toolCode') || crypto.randomUUID())
+      const invocation = String(pick(data, 'InvocationId', 'invocationId') || pick(data, 'ToolCode', 'toolCode') || createUuid())
       const stage = String(pick(data, 'Stage', 'stage') || 'started')
       const existing = traces.value.find(x => x.StepId === invocation)
       const patch: TraceStep = { StepId: invocation, Title: String(pick(data, 'Message', 'message') || pick(data, 'ToolCode', 'toolCode') || '执行只读业务工具'), ToolCode: pick(data, 'ToolCode', 'toolCode'), Status: stage === 'completed' ? 'completed' : stage === 'failed' ? 'failed' : 'running', ElapsedMs: Number(pick(data, 'ElapsedMs', 'elapsedMs') || 0) || undefined }
@@ -116,7 +117,7 @@ export const useChatStore = defineStore('chat', () => {
       if (!traces.value.some(x => x.StepId === 'plan')) traces.value.push({ StepId: 'plan', Title: '执行计划已生成', Status: 'completed' })
     } else if (event.event.startsWith('step.')) {
       removeGenerationPlaceholder(traces.value)
-      const payload = record(pick(data, 'Data', 'data') || data); const id = String(pick(payload, 'StepId', 'stepId') || event.id || crypto.randomUUID())
+      const payload = record(pick(data, 'Data', 'data') || data); const id = String(pick(payload, 'StepId', 'stepId') || event.id || createUuid())
       const eventStatus = event.event.slice('step.'.length)
       const terminalStatuses = ['completed', 'failed', 'cancelled', 'blocked', 'skipped']
       const status = (terminalStatuses.includes(eventStatus) ? eventStatus : 'running') as TraceStep['Status']
@@ -163,8 +164,10 @@ export const useChatStore = defineStore('chat', () => {
     const user: Message = { Id: `local-user-${startedAt}`, ConversationId: conversationId, Role: 'user', Content: text.trim(), Attachments: attachments, Status: 'completed', CreateTime: new Date(startedAt).toISOString() }
     let answer: Message = { Id: `local-ai-${startedAt}`, ConversationId: conversationId, Role: 'assistant', Content: '', Status: 'streaming', CreateTime: new Date(startedAt).toISOString() }
     messages.value.push(user, answer)
+    const acceptedConversation = current.value
+    syncConversationMessageState(acceptedConversation, Math.max(acceptedConversation?.MessageCount || 0, messages.value.length))
     answer = messages.value.at(-1)!
-    traces.value = [createGenerationPlaceholder()]; artifacts.value = []; lastError.value = ''; streaming.value = true; generationId.value = ''
+    traces.value = [createGenerationPlaceholder()]; artifacts.value = collectWorkspaceArtifacts(messages.value); lastError.value = ''; streaming.value = true; generationId.value = ''
     if (!anonymous) conversationStatuses.value[currentId.value] = 'running'
     aborter.value = new AbortController()
     try {

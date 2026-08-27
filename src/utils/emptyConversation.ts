@@ -2,17 +2,27 @@ import type { Conversation, Message, MessagePage } from '@/types/ai'
 
 export const hasNoMessages = (response: MessagePage | Message[]) => (Array.isArray(response) ? response : response.Items).length === 0
 
+export function syncConversationMessageState(conversation: Conversation | undefined, messageCount: number) {
+  if (!conversation) return
+  conversation.MessageCount = Math.max(0, messageCount)
+  conversation.IsEmpty = conversation.MessageCount === 0
+}
+
 export async function findReusableEmptyConversation(
   conversations: Conversation[],
   currentId: string,
   currentMessages: Message[],
   loadMessages: (id: string) => Promise<MessagePage | Message[]>
 ): Promise<Conversation | undefined> {
-  const explicit = conversations.find(item => item.IsEmpty === true || item.MessageCount === 0)
+  const explicit = conversations.find(item => {
+    if (item.Id === currentId && currentMessages.length > 0) return false
+    return item.IsEmpty === true || item.MessageCount === 0
+  })
   if (explicit) return explicit
   const current = conversations.find(item => item.Id === currentId)
   if (current && currentMessages.length === 0) return current
   for (const item of conversations) {
+    if (item.Id === currentId && currentMessages.length > 0) continue
     if (item.IsEmpty === false || (item.MessageCount ?? 0) > 0) continue
     if (hasNoMessages(await loadMessages(item.Id))) return item
   }

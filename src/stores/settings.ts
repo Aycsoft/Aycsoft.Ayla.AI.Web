@@ -23,7 +23,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const logoUrl = computed(() => {
     const portalOrigin = String(import.meta.env.VITE_PORTAL_ORIGIN || (import.meta.env.DEV ? `${window.location.protocol}//${window.location.hostname}:4000` : window.location.origin)).replace(/\/$/, '')
     const fileId = value.value.LogoFileId?.trim()
-    if (!fileId) return String(import.meta.env.VITE_DEFAULT_AI_LOGO_URL || `${portalOrigin}/src/assets/images/ayla-logo-user.png`)
+    if (!fileId) return String(import.meta.env.VITE_DEFAULT_AI_LOGO_URL || `${import.meta.env.BASE_URL}ayla-logo.png`)
     return `${portalOrigin}/api/fileapi/FileStorageApi/raw/${encodeURIComponent(fileId)}`
   })
   async function load() {

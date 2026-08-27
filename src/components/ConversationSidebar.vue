@@ -76,7 +76,9 @@ const toggleTheme = () => { theme.value = nextTheme(theme.value); applyWorkspace
       <button title="新建任务" @click="newChat"><Icon icon="lucide:square-pen" /><span>新建任务</span></button>
       <button title="搜索真实会话" @click="searchOpen = !searchOpen"><Icon icon="lucide:search" /><span>搜索</span></button>
       <label v-if="searchOpen && !collapsed" class="sidebar-search"><Icon icon="lucide:search" /><input v-model="keyword" autofocus aria-label="搜索最近任务" placeholder="搜索最近任务" /></label>
-      <button v-if="auth.session && isInternal" title="CrossCart ERP 工具" @click="router.push('/knowledge')"><Icon icon="lucide:plug" /><span>插件与知识</span></button>
+      <button v-if="auth.session" title="管理个人与授权知识库" @click="router.push('/knowledge')"><Icon icon="lucide:library-big" /><span>知识库</span></button>
+      <button v-if="auth.session" title="管理 AI 输出规范" @click="router.push('/skills')"><Icon icon="lucide:wand-sparkles" /><span>Skill</span></button>
+      <button v-if="auth.session" title="管理 Markdown 笔记" @click="router.push('/notes')"><Icon icon="lucide:notebook-pen" /><span>笔记</span></button>
       <button v-if="!auth.session || isInternal" title="打开 CrossCart Portal" @click="openPortal"><Icon icon="lucide:external-link" /><span>打开 Portal</span></button>
     </nav>
 

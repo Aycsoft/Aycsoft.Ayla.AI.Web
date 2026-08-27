@@ -43,14 +43,30 @@ const loginUrl = String(import.meta.env.VITE_SSO_LOGIN_URL || (import.meta.env.D
 const internalConfigured = computed(() => Boolean(loginUrl))
 const codeLabel = computed(() => countdown.value > 0 ? `${countdown.value} 秒后重发` : '获取验证码')
 const codePurpose = computed<ExternalAuthScene>(() => resettingPassword.value ? 'reset-password' : scene.value)
-const canSubmit = computed(() => {
-  if (!isValidEmail(email.value)) return false
-  if (resettingPassword.value) return code.value.trim().length >= 4 && isStrongExternalPassword(password.value) && password.value === confirmPassword.value
-  if (scene.value === 'login') return loginMethod.value === 'password' ? Boolean(password.value) : code.value.trim().length >= 4
-  if (code.value.trim().length < 4 || !isStrongExternalPassword(password.value) || password.value !== confirmPassword.value) return false
-  if (!name.value.trim() || purposes.value.length === 0) return false
-  return !purposes.value.includes('other') || Boolean(otherPurpose.value.trim())
+const passwordStrong = computed(() => isStrongExternalPassword(password.value))
+const passwordsMatch = computed(() => Boolean(confirmPassword.value) && password.value === confirmPassword.value)
+const submitIssue = computed(() => {
+  if (!isValidEmail(email.value)) return '请输入可接收邮件的有效邮箱地址'
+  if (resettingPassword.value) {
+    if (code.value.trim().length < 4) return '请输入邮箱验证码'
+    if (!passwordStrong.value) return '密码至少 10 位，并包含大小写字母、数字、符号中的三类'
+    if (!passwordsMatch.value) return '两次输入的密码不一致'
+    return ''
+  }
+  if (scene.value === 'login') {
+    if (loginMethod.value === 'password' && !password.value) return '请输入登录密码'
+    if (loginMethod.value === 'code' && code.value.trim().length < 4) return '请输入邮箱验证码'
+    return ''
+  }
+  if (!name.value.trim()) return '请输入您的名称'
+  if (code.value.trim().length < 4) return '请输入邮箱验证码'
+  if (!passwordStrong.value) return '密码至少 10 位，并包含大小写字母、数字、符号中的三类'
+  if (!passwordsMatch.value) return '两次输入的密码不一致'
+  if (purposes.value.length === 0) return '请至少选择一个使用目的'
+  if (purposes.value.includes('other') && !otherPurpose.value.trim()) return '请填写其他使用目的'
+  return ''
 })
+const canSubmit = computed(() => !submitting.value)
 
 watch([channel, scene, loginMethod], () => { error.value = ''; code.value = ''; password.value = ''; confirmPassword.value = ''; resettingPassword.value = false })
 onBeforeUnmount(() => { if (countdownTimer) clearInterval(countdownTimer) })
@@ -88,7 +104,7 @@ async function sendCode() {
 
 async function submitExternal() {
   error.value = ''
-  if (!canSubmit.value) { error.value = scene.value === 'register' ? '请完整填写资料；密码至少 10 位，并包含大小写字母、数字、符号中的三类' : '请完整填写账号凭证'; return }
+  if (submitIssue.value) { error.value = submitIssue.value; return }
   submitting.value = true
   try {
     if (resettingPassword.value) {
@@ -156,6 +172,10 @@ async function submitExternal() {
           <label v-if="scene === 'register' || resettingPassword || loginMethod === 'code'" class="auth-field"><span>邮箱验证码</span><div class="auth-code-field"><Icon icon="lucide:badge-check" /><input v-model="code" inputmode="numeric" maxlength="8" autocomplete="one-time-code" placeholder="请输入验证码" /><button type="button" :disabled="sendingCode || countdown > 0" @click="sendCode">{{ sendingCode ? '发送中…' : codeLabel }}</button></div></label>
           <label v-if="scene === 'register' || resettingPassword || loginMethod === 'password'" class="auth-field"><span>{{ scene === 'register' ? '设置登录密码' : resettingPassword ? '新密码' : '登录密码' }}</span><div class="auth-password-field"><Icon icon="lucide:key-round" /><input v-model="password" :type="showPassword ? 'text' : 'password'" maxlength="128" :autocomplete="scene === 'login' && !resettingPassword ? 'current-password' : 'new-password'" :placeholder="scene === 'login' && !resettingPassword ? '请输入登录密码' : '至少 10 位，包含三类字符'" /><button type="button" :aria-label="showPassword ? '隐藏密码' : '显示密码'" @click="showPassword = !showPassword"><Icon :icon="showPassword ? 'lucide:eye-off' : 'lucide:eye'" /></button></div></label>
           <label v-if="scene === 'register' || resettingPassword" class="auth-field"><span>确认密码</span><div><Icon icon="lucide:shield-check" /><input v-model="confirmPassword" :type="showPassword ? 'text' : 'password'" maxlength="128" autocomplete="new-password" placeholder="再次输入密码" /></div></label>
+          <div v-if="scene === 'register' || resettingPassword" class="auth-password-status" aria-live="polite">
+            <span :class="{ valid: passwordStrong, invalid: password.length > 0 && !passwordStrong }"><Icon :icon="passwordStrong ? 'lucide:circle-check' : 'lucide:circle'" />至少 10 位，包含四类字符中的三类</span>
+            <span :class="{ valid: passwordsMatch, invalid: confirmPassword.length > 0 && !passwordsMatch }"><Icon :icon="passwordsMatch ? 'lucide:circle-check' : 'lucide:circle'" />两次密码一致</span>
+          </div>
           <button v-if="scene === 'login' && loginMethod === 'password' && !resettingPassword" class="auth-forgot" type="button" @click="resettingPassword = true; code = ''; password = ''; confirmPassword = ''">忘记密码？</button>
           <fieldset v-if="scene === 'register'" class="purpose-fieldset">
             <legend>您希望用 AI 完成什么？<small>可多选</small></legend>

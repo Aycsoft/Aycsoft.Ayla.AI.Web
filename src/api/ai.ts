@@ -1,8 +1,9 @@
 import { apiUrl, mutationHeaders, query, request, ApiError } from './http'
 import { SseParser } from './sse'
-import type { AISettings, AiModelDefinition, AiUsageSummary, Assistant, Attachment, ChatRequest, Conversation, ConversationPage, ExternalAuthCodeRequest, ExternalAuthLoginRequest, ExternalAuthRegisterRequest, ExternalAuthResult, ExternalPasswordLoginRequest, ExternalPasswordResetRequest, ExternalPasswordSetRequest, ExternalProfileUpdateRequest, KnowledgeDocument, Message, MessagePage, ParsedSseEvent, PublicChatRequest, SsoExchangeResult, WorkspaceModel, WorkspaceSession } from '@/types/ai'
+import type { AISettings, AiModelDefinition, AiUsageSummary, Assistant, Attachment, ChatRequest, Conversation, ConversationPage, ExternalAuthCodeRequest, ExternalAuthLoginRequest, ExternalAuthRegisterRequest, ExternalAuthResult, ExternalPasswordLoginRequest, ExternalPasswordResetRequest, ExternalPasswordSetRequest, ExternalProfileUpdateRequest, KnowledgeDocument, MarkdownNote, Message, MessagePage, ParsedSseEvent, PersonalKnowledgeDocument, PublicChatRequest, SsoExchangeResult, UserSkill, WorkspaceModel, WorkspaceSession } from '@/types/ai'
 import { buildFeedbackPayload, type FeedbackPayload } from './feedbackContract'
 import { usageSummaryPath, type UsageSummaryQuery } from './usageContract'
+import { normalizeMessageResponse } from '@/utils/messageAttachments'
 
 const workspace = (path: string) => `/workspace${path}`
 
@@ -27,12 +28,24 @@ export const aiApi = {
   createConversation: (data: { AssistantId: string; Title?: string; Source?: 'portal' | 'ai-web' | 'api'; IdempotencyKey?: string }) => request<Conversation>(workspace('/conversations'), { method: 'POST', body: JSON.stringify(data) }),
   renameConversation: (id: string, Title: string) => request<Conversation>(workspace(`/conversations/${encodeURIComponent(id)}`), { method: 'PATCH', body: JSON.stringify({ Title }) }),
   deleteConversation: (id: string) => request<void>(workspace(`/conversations/${encodeURIComponent(id)}`), { method: 'DELETE' }),
-  messages: (id: string, BeforeSequence?: number) => request<MessagePage | Message[]>(`${workspace(`/conversations/${encodeURIComponent(id)}/messages`)}?${query({ BeforeSequence, PageSize: 100 })}`),
+  messages: async (id: string, BeforeSequence?: number) => normalizeMessageResponse(await request<MessagePage | Message[]>(`${workspace(`/conversations/${encodeURIComponent(id)}/messages`)}?${query({ BeforeSequence, PageSize: 100 })}`)),
   stop: (GenerationId: string) => request<{ Stopped?: boolean }>(workspace('/chat/stop'), { method: 'POST', body: JSON.stringify({ GenerationId }) }),
   regenerate: (ConversationId: string, MessageId?: string) => request<Message>(workspace('/chat/regenerate'), { method: 'POST', body: JSON.stringify({ ConversationId, MessageId }) }),
   feedback: (id: string, feedback: FeedbackPayload) => request<void>(workspace(`/messages/${encodeURIComponent(id)}/feedback`), { method: 'POST', body: JSON.stringify(buildFeedbackPayload(feedback)) }),
   usageSummary: (params: UsageSummaryQuery = {}) => request<AiUsageSummary>(usageSummaryPath(params)),
   documents: () => request<KnowledgeDocument[]>(`${workspace('/knowledge/documents')}?PageIndex=1&PageSize=100`),
+  personalKnowledge: () => request<PersonalKnowledgeDocument[]>(workspace('/personal/knowledge')),
+  createPersonalKnowledge: (data: { FileId: string; FileName: string; ContentType: string }) => request<PersonalKnowledgeDocument>(workspace('/personal/knowledge'), { method: 'POST', body: JSON.stringify(data) }),
+  deletePersonalKnowledge: (id: string) => request<void>(workspace(`/personal/knowledge/${encodeURIComponent(id)}`), { method: 'DELETE' }),
+  skills: () => request<UserSkill[]>(workspace('/personal/skills')),
+  createSkill: (data: { Name: string; Description?: string; Instructions: string; IsEnabled: boolean }) => request<UserSkill>(workspace('/personal/skills'), { method: 'POST', body: JSON.stringify(data) }),
+  updateSkill: (id: string, data: { Name: string; Description?: string; Instructions: string; IsEnabled: boolean }) => request<UserSkill>(workspace(`/personal/skills/${encodeURIComponent(id)}`), { method: 'PUT', body: JSON.stringify(data) }),
+  deleteSkill: (id: string) => request<void>(workspace(`/personal/skills/${encodeURIComponent(id)}`), { method: 'DELETE' }),
+  notes: (keyword?: string) => request<MarkdownNote[]>(`${workspace('/personal/notes')}?${query({ keyword })}`),
+  note: (id: string) => request<MarkdownNote>(workspace(`/personal/notes/${encodeURIComponent(id)}`)),
+  createNote: (data: { Title: string; ContentMarkdown: string; Tags: string[] }) => request<MarkdownNote>(workspace('/personal/notes'), { method: 'POST', body: JSON.stringify(data) }),
+  updateNote: (id: string, data: { Title: string; ContentMarkdown: string; Tags: string[] }) => request<MarkdownNote>(workspace(`/personal/notes/${encodeURIComponent(id)}`), { method: 'PUT', body: JSON.stringify(data) }),
+  deleteNote: (id: string) => request<void>(workspace(`/personal/notes/${encodeURIComponent(id)}`), { method: 'DELETE' }),
   models: () => request<AiModelDefinition[]>(`${workspace('/admin/providers/models')}?includeDisabled=false`),
   testModel: (data: { ProviderId?: string; ModelId?: string; InternalAlias?: string; Message: string; RequireToolCalling?: boolean }) => request<Record<string, unknown>>(workspace('/admin/providers/test'), { method: 'POST', body: JSON.stringify(data) }),
   upload: async (file: File): Promise<Attachment> => {

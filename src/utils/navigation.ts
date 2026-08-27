@@ -1,5 +1,9 @@
 const trimSlashes = (value: string) => value.replace(/^\/+|\/+$/g, '')
 
+export const routeAfterSessionProbeFailure = (routeName: unknown) => routeName === 'chat'
+  ? true
+  : { name: 'chat' as const }
+
 export function buildWorkspaceRouteUrl(
   route: string,
   query: Record<string, string | undefined> = {},

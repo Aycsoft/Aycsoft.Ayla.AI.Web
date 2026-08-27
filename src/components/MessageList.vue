@@ -63,16 +63,21 @@ const messageElapsed = (message: Message) => {
   <div ref="container" class="message-list" aria-live="polite" @scroll="updateScrollState">
     <article v-for="message in chat.messages" :key="message.Id" :class="['message', message.Role]">
       <div class="message-body">
-        <div v-if="message.Role === 'user'" class="user-message"><RichMessageContent :content="message.Content" /><MessageAttachmentList v-if="message.Attachments?.length" :files="message.Attachments" /></div>
+        <div v-if="message.Role === 'user'" class="user-message">
+          <div v-if="message.Content" class="user-message-bubble"><RichMessageContent :content="message.Content" /></div>
+          <MessageAttachmentList v-if="message.Attachments?.length" :files="message.Attachments" />
+        </div>
         <template v-else>
           <div v-if="message.Id === latestAssistantId && chat.traces.length"><ReasoningTimeline /></div>
           <div v-else-if="message.Status === 'streaming' && !message.Content" class="message-progress"><Icon icon="lucide:loader-circle" /> 正在连接…</div>
           <div v-else-if="message.Status === 'stopped'" class="message-progress stopped"><Icon icon="lucide:square" /> 已停止生成</div>
           <div v-if="messageElapsed(message)" class="message-elapsed" role="status"><Icon v-if="message.Status === 'streaming'" icon="lucide:timer" />已处理 {{ messageElapsed(message) }}</div>
           <div v-if="message.Content" class="message-content"><RichMessageContent :content="message.Content" /></div>
-          <GenerationProgressCard v-if="message.Id === latestAssistantId && message.Status === 'streaming' && chat.activeGenerationKind" :kind="chat.activeGenerationKind" :progress="activeProgress" :stage="activeStage" />
+          <div v-if="(message.Id === latestAssistantId && message.Status === 'streaming' && chat.activeGenerationKind) || artifacts(message).length" class="generation-output-stack">
+            <GenerationProgressCard v-if="message.Id === latestAssistantId && message.Status === 'streaming' && chat.activeGenerationKind" :kind="chat.activeGenerationKind" :progress="activeProgress" :stage="activeStage" />
+            <div v-if="artifacts(message).length" class="artifact-output-list"><ArtifactOutputCard v-for="artifact in artifacts(message)" :key="artifact.ArtifactId" :artifact="artifact" :progress="artifactProgress(artifact)" /></div>
+          </div>
           <MessageAttachmentList v-if="message.Attachments?.length" :files="message.Attachments" />
-          <div v-if="artifacts(message).length" class="artifact-output-list"><ArtifactOutputCard v-for="artifact in artifacts(message)" :key="artifact.ArtifactId" :artifact="artifact" :progress="artifactProgress(artifact)" /></div>
           <div v-if="citations(message).length" class="citations"><details open><summary>参考来源 · {{ citations(message).length }}</summary><ol><li v-for="(source, index) in citations(message)" :key="`${citationUrl(source)}-${index}`"><a v-if="citationUrl(source)" :href="citationUrl(source)" target="_blank" rel="noopener noreferrer nofollow"><span>{{ citationTitle(source) }}</span><small>{{ citationHost(source) || '打开来源' }}</small><Icon icon="lucide:external-link" /></a><span v-else><span>{{ citationTitle(source) }}</span><small>{{ source.Section || (source.Page ? `第 ${source.Page} 页` : '授权业务来源') }}</small></span></li></ol></details></div>
           <div v-if="message.ErrorMessage" class="inline-error"><Icon icon="lucide:circle-alert" />{{ message.ErrorMessage }}</div>
           <footer v-if="message.Content || message.Status === 'error' || message.Status === 'stopped'" class="message-actions">

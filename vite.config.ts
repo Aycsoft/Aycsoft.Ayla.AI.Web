@@ -6,19 +6,20 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const proxyTarget = env.VITE_DEV_PROXY_TARGET || 'http://localhost:5088'
+  const listenHost = env.VITE_HOST || '0.0.0.0'
   const appBase = `/${String(env.VITE_APP_BASE_PATH || '/').replace(/^\/+|\/+$/g, '')}`.replace(/\/$/, '') + '/'
   return {
     base: appBase,
     plugins: [vue(), UnoCSS()],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     server: {
-      host: 'localhost',
+      host: listenHost,
       port: Number(env.VITE_PORT || 5176),
       strictPort: true,
       proxy: { '/api': { target: proxyTarget, changeOrigin: true, secure: false } }
     },
     preview: {
-      host: 'localhost',
+      host: listenHost,
       port: Number(env.VITE_PREVIEW_PORT || 4176),
       strictPort: true
     },

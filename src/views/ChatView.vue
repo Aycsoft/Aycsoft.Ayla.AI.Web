@@ -42,10 +42,10 @@ const seed = (value: string) => { prompt.value = ''; requestAnimationFrame(() =>
         <button v-if="chat.traces.length || chat.artifacts.length" class="icon-button progress-trigger" aria-label="查看任务进度" @click="progressOpen = !progressOpen"><Icon icon="lucide:panel-right" /></button>
       </header>
       <div v-if="chat.loginRequired && !auth.session" class="login-notice"><span>该请求需要访问 CrossCart 业务资源，请登录后继续。</span><button @click="auth.login()">立即登录</button></div>
-      <div v-if="chat.loading" class="page-loading"><Icon icon="lucide:loader-circle" /> 正在载入授权会话…</div>
-      <div v-else-if="chat.lastError && !chat.messages.length" class="service-error"><Icon icon="lucide:cloud-off" /><h2>AI 服务暂时不可用</h2><p>{{ chat.lastError }}</p><button @click="chat.bootstrap()">重新连接</button></div>
-      <EmptyWorkspace v-else-if="!chat.messages.length" :mode="creationMode" @prompt="seed" @upload="seed('请分析我接下来上传的文件')" />
-      <template v-else><MessageList /></template>
+      <div v-if="chat.lastError && !chat.loading && !chat.messages.length" class="workspace-service-notice" role="alert"><Icon icon="lucide:cloud-off" /><span><strong>AI 服务暂时不可用</strong><small>{{ chat.lastError }}。页面与输入内容仍会保留。</small></span><button @click="chat.bootstrap()"><Icon icon="lucide:refresh-cw" />重新连接</button></div>
+      <div v-if="chat.loading && !chat.messages.length" class="page-loading"><Icon icon="lucide:loader-circle" /> 正在载入授权会话…</div>
+      <EmptyWorkspace v-else-if="!chat.messages.length" :mode="creationMode" :message-count="chat.messages.length" @prompt="seed" @upload="seed('请分析我接下来上传的文件')" />
+      <MessageList v-else />
       <ChatComposer :seeded-prompt="prompt" @mode-changed="creationMode = $event" />
     </section>
     <TracePanel :open="progressOpen" @toggle="progressOpen = !progressOpen" />

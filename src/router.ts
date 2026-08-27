@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import { routeAfterSessionProbeFailure } from './utils/navigation'
 
 const routes = [
   { path: '/', redirect: '/chat' },
@@ -7,6 +8,8 @@ const routes = [
   { path: '/auth/sso/callback', name: 'sso-callback', component: () => import('./views/SsoCallbackView.vue'), meta: { public: true } },
   { path: '/chat', name: 'chat', component: () => import('./views/ChatView.vue') },
   { path: '/knowledge', name: 'knowledge', component: () => import('./views/KnowledgeView.vue') },
+  { path: '/skills', name: 'skills', component: () => import('./views/SkillsView.vue') },
+  { path: '/notes', name: 'notes', component: () => import('./views/NotesView.vue') },
   { path: '/model-lab', name: 'model-lab', component: () => import('./views/ModelLabView.vue') },
   { path: '/:pathMatch(.*)*', redirect: '/chat' }
 ]
@@ -15,8 +18,8 @@ const router = createRouter({ history: createWebHashHistory(import.meta.env.BASE
 router.beforeEach(async to => {
   if (to.meta.public) return true
   const auth = useAuthStore()
-  await auth.ensure()
+  try { await auth.ensure() }
+  catch { return routeAfterSessionProbeFailure(to.name) }
   if (to.name !== 'chat' && !auth.session) return { name: 'chat', query: { login: 'required' } }
-  if (auth.session?.AccountType === 'external' && ['knowledge', 'model-lab'].includes(String(to.name))) return { name: 'chat' }
 })
 export default router

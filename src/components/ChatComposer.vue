@@ -9,7 +9,6 @@ import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 import ModelPicker from '@/components/ModelPicker.vue'
 import BrandLogo from '@/components/BrandLogo.vue'
-import MediaWorkspacePanel from '@/components/MediaWorkspacePanel.vue'
 import { preferredModelForCapability } from '@/utils/modelCatalog'
 import type { Attachment, ChatOptions, WorkspaceModel } from '@/types/ai'
 
@@ -25,7 +24,10 @@ const draftKey = computed(() => `crosscart-ai-draft:${chat.currentId || 'new'}`)
 const shortcutHandler = (event: KeyboardEvent) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') void submit() }
 watch(() => props.seededPrompt, value => { if (value) { text.value = value; void nextTick(() => input.value?.focus()) } })
 watch(() => chat.currentId, () => { text.value = sessionStorage.getItem(draftKey.value) || '' }, { immediate: true })
-watch(text, value => sessionStorage.setItem(draftKey.value, value))
+watch(text, value => {
+  if (value) sessionStorage.setItem(draftKey.value, value)
+  else sessionStorage.removeItem(draftKey.value)
+})
 watch(currentModel, value => { if (deep.value && !value?.SupportsReasoning) { deep.value = false; if (mode.value === 'deepThinking') mode.value = 'auto' } })
 const loadModels = async () => {
   modelError.value = ''
@@ -64,20 +66,24 @@ const submit = async () => {
     return
   }
   const value = text.value; const attachments = [...files.value]
-  await chat.send(value, attachments, {
+  const options: ChatOptions = {
     Mode: mode.value, DeepThinking: deep.value, WebSearch: web.value,
     ImageRecognition: mode.value === 'imageRecognition', ImageGeneration: mode.value === 'imageGeneration', VideoGeneration: mode.value === 'videoGeneration',
     VideoDurationSeconds: mode.value === 'videoGeneration' ? videoDuration.value : undefined, VideoAspectRatio: mode.value === 'videoGeneration' ? videoAspectRatio.value : undefined,
     InternalModelAlias: internalAlias.value || undefined
-  })
-  const latest = chat.messages.at(-1)
-  if (latest?.Role === 'assistant' && latest.Status !== 'error') { text.value = ''; files.value = []; sessionStorage.removeItem(draftKey.value) }
+  }
+  text.value = ''; files.value = []; sessionStorage.removeItem(draftKey.value); void resize()
   emit('sent')
+  try {
+    await chat.send(value, attachments, options)
+  } catch (error) {
+    // 会话尚未受理（例如创建会话失败）时恢复原稿；流式失败由消息历史提供重试上下文。
+    text.value = value; files.value = attachments; void resize()
+    ElMessage.error((error as Error).message || '消息发送失败，请重试')
+  }
 }
 const retryLast = async () => {
   await chat.retry()
-  const latest = chat.messages.at(-1)
-  if (latest?.Role === 'assistant' && latest.Status !== 'error') { text.value = ''; files.value = []; sessionStorage.removeItem(draftKey.value) }
 }
 const openModelPicker = () => { (modelPickerHost.value?.querySelector('.model-picker-trigger') as HTMLButtonElement | null)?.click() }
 const setMode = (value: ChatOptions['Mode']) => {
@@ -98,7 +104,7 @@ const keydown = (event: KeyboardEvent) => { if (event.key === 'Enter' && !event.
 
 <template>
   <div class="composer" @dragover.prevent @drop.prevent="onFiles($event.dataTransfer?.files || [])">
-    <div v-if="chat.lastError" class="composer-recovery" role="alert">
+    <div v-if="chat.lastError && chat.messages.length" class="composer-recovery" role="alert">
       <Icon icon="lucide:circle-alert" /><span><strong>本次生成未完成</strong><small>{{ chat.lastError }}
           输入内容已保留，可切换模型后重试。</small></span><button :disabled="chat.streaming" @click="openModelPicker">
         <Icon icon="lucide:shuffle" />切换模型
@@ -172,6 +178,5 @@ const keydown = (event: KeyboardEvent) => { if (event.key === 'Enter' && !event.
       </button>
     </div>
     <small class="composer-hint">Create By.Peng Yang</small>
-    <MediaWorkspacePanel v-if="channel !== 'chat'" :mode="channel" @prompt="text = $event; resize()" />
   </div>
 </template>
