@@ -520,17 +520,6 @@ textarea:focus-visible {
 .attachment-list small {
   color: var(--tertiary);
 }
-.citations {
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.citations summary {
-  cursor: pointer;
-}
-.citations details div {
-  padding: 4px 12px;
-}
 .inline-error {
   margin-top: 8px;
   color: var(--danger);
@@ -1242,7 +1231,7 @@ textarea:focus-visible {
 /* MiniMax Agent-calibrated workspace. Measured tokens are documented in ui-audit/minimax-agent-ui-spec.md. */
 :root {
   --mm-sidebar: 208px;
-  --mm-content: 590px;
+  --mm-content: 850px;
   --mm-composer: 614px;
   --mm-line: #ededed;
   --mm-selected: #f1f1f1;
@@ -1440,6 +1429,29 @@ body {
   padding: 8px 7px;
   color: var(--mm-weak);
   font-size: 11px;
+}
+.conversation-period-title {
+  padding: 9px 7px 4px;
+  color: var(--mm-weak);
+  font-size: 10px;
+  line-height: 16px;
+}
+.conversation-period-title:first-of-type {
+  padding-top: 2px;
+}
+.sidebar-group > .conversation-load-more {
+  margin-top: 6px;
+  justify-content: center;
+  color: var(--mm-weak);
+}
+.sidebar-group > .conversation-load-more svg[data-icon="lucide:loader-circle"] {
+  animation: spin 1s linear infinite;
+}
+.conversation-list-end {
+  padding: 10px 7px 4px;
+  color: var(--mm-weak);
+  font-size: 10px;
+  text-align: center;
 }
 .sidebar-account {
   height: 48px;
@@ -4981,21 +4993,35 @@ body {
   margin-top: 14px;
 }
 .citations details {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface-subtle);
-  overflow: hidden;
+  border: 0;
 }
 .citations summary {
-  padding: 8px 10px;
+  width: max-content;
+  padding: 4px 0;
   cursor: pointer;
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
+.citations summary::-webkit-details-marker { display: none; }
+.citations summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 160ms ease;
+}
+.citations details[open] summary::before { transform: rotate(45deg); }
+.citations summary svg { flex: 0 0 auto; }
 .citations ol {
-  margin: 0;
-  padding: 0 8px 8px;
+  margin: 6px 0 0;
+  padding: 0;
   list-style: none;
   display: grid;
   gap: 5px;
@@ -5003,23 +5029,25 @@ body {
 .citations li > a,
 .citations li > span {
   min-width: 0;
-  padding: 7px 8px;
-  border-radius: 7px;
-  background: var(--surface);
+  padding: 7px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   color: var(--text);
   text-decoration: none;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 2px 8px;
   align-items: center;
 }
 .citations li > a:hover {
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--primary) 35%, var(--border));
   color: var(--primary);
 }
-.citations li span span,
-.citations li > a span {
+.citation-primary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.citation-primary > span:last-child {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5027,16 +5055,55 @@ body {
   font-size: 10px;
 }
 .citations li small {
-  grid-column: 1;
+  grid-column: 2;
+  grid-row: 1;
   color: var(--tertiary);
   font-size: 8px;
 }
-.citations li svg {
-  grid-column: 2;
-  grid-row: 1/3;
+.citations li .citation-external {
+  grid-column: 3;
+  grid-row: 1;
   color: var(--muted);
   font-size: 12px;
 }
+.source-favicon {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--muted);
+}
+.source-favicon img { width: 12px; height: 12px; object-fit: contain; }
+.source-favicon svg { font-size: 11px; }
+
+.internal-provider { padding: 16px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); }
+.internal-provider-brand { display: flex; align-items: center; gap: 10px; }
+.internal-provider-brand > span { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--primary) 11%, transparent); color: var(--primary); }
+.internal-provider-brand > div { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.internal-provider-brand strong { font-size: 12px; }
+.internal-provider-brand small { margin-top: 2px; color: var(--muted); font-size: 9px; }
+.internal-provider-brand > svg { color: #28a56b; font-size: 17px; }
+.internal-auth-flow { margin: 16px 0 12px; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); list-style: none; }
+.internal-auth-flow li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; text-align: center; }
+.internal-auth-flow li:not(:last-child):after { content: ''; position: absolute; top: 10px; left: calc(50% + 14px); right: calc(-50% + 14px); height: 1px; background: var(--border); }
+.internal-auth-flow span { position: relative; z-index: 1; width: 21px; height: 21px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); display: grid; place-items: center; color: var(--primary); font-weight: 650; }
+.internal-provider > p { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 9px; }
+.internal-provider > p svg { color: #28a56b; }
+
+.sso-page { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 42%), var(--bg); }
+.sso-card { width: min(390px, 100%); padding: 30px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; text-align: center; }
+.sso-status-icon { width: 38px; height: 38px; margin: 18px 0 10px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--primary); }
+.sso-status-icon svg { font-size: 20px; animation: spin 1s linear infinite; }
+.sso-status-icon.error { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
+.sso-status-icon.error svg { animation: none; }
+.sso-card h2 { margin: 0; font-size: 18px; }
+.sso-card > p { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.7; }
+.sso-actions { width: 100%; margin-top: 7px; }
+.sso-secondary { width: 100%; height: 40px; margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); }
 /* Media creation workspace: keep every control reachable and give real outputs their own row. */
 .composer:has(.media-workspace-panel) {
   max-height: calc(100dvh - 76px);

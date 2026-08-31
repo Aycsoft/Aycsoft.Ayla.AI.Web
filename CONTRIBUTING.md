@@ -1,6 +1,6 @@
 # Contributing
 
-感谢你参与 Ayla AI Workspace。
+感谢你参与 [Ayla AI Workspace](https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web)。
 
 1. Fork 仓库并从 `master` 创建分支。
 2. 运行 `pnpm install` 安装依赖。

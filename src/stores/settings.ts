@@ -26,6 +26,15 @@ export const useSettingsStore = defineStore('settings', () => {
     if (!fileId) return String(import.meta.env.VITE_DEFAULT_AI_LOGO_URL || `${import.meta.env.BASE_URL}ayla-logo.png`)
     return `${portalOrigin}/api/fileapi/FileStorageApi/raw/${encodeURIComponent(fileId)}`
   })
+  function applyFavicon(source: string) {
+    const fallback = `${import.meta.env.BASE_URL}ayla-logo.png`
+    const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+    if (!favicon) return
+    const image = new Image()
+    image.onload = () => { favicon.href = source }
+    image.onerror = () => { favicon.href = fallback }
+    image.src = source
+  }
   async function load() {
     if (loading.value) return
     loading.value = true
@@ -33,8 +42,7 @@ export const useSettingsStore = defineStore('settings', () => {
       const remote = await aiApi.settings()
       value.value = { ...defaults, ...remote, QuickQuestions: remote.QuickQuestions?.length ? [...remote.QuickQuestions] : [...defaults.QuickQuestions] }
       document.title = `${value.value.Name || defaults.Name} · Aycsoft AI`
-      const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-      if (favicon) favicon.href = logoUrl.value
+      applyFavicon(logoUrl.value)
       available.value = true
     }
     catch { available.value = false }

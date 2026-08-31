@@ -31,3 +31,12 @@ export function citationHost(source: Citation): string {
   try { return new URL(value, window.location.origin).hostname }
   catch { return '' }
 }
+
+export function citationIconUrl(value: string): string {
+  try {
+    const target = new URL(value, window.location.origin)
+    return target.protocol === 'http:' || target.protocol === 'https:'
+      ? `${target.origin}/favicon.ico`
+      : ''
+  } catch { return '' }
+}

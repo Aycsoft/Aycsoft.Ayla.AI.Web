@@ -13,6 +13,7 @@ import ExternalProfileDialog from '@/components/ExternalProfileDialog.vue'
 import UsageSummaryDialog from '@/components/UsageSummaryDialog.vue'
 import { applyWorkspaceTheme, nextTheme, normalizeTheme } from '@/utils/theme'
 import { normalizeBackendResourceUrl } from '@/utils/backendResource'
+import { groupConversationsByAge } from '@/utils/conversationHistory'
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
@@ -29,10 +30,16 @@ const actionBusy = ref(false)
 const actionError = ref('')
 const collapsed = ref(localStorage.getItem('crosscart-ai-sidebar-collapsed') === '1')
 const theme = ref(normalizeTheme(localStorage.getItem('crosscart-ai-theme')))
-const filtered = computed(() => chat.conversations.filter(x => x.Title.toLowerCase().includes(keyword.value.trim().toLowerCase())))
+const filtered = computed(() => chat.conversations.filter(x => (x.Title || '').toLowerCase().includes(keyword.value.trim().toLowerCase())))
+const groupedConversations = computed(() => groupConversationsByAge(filtered.value))
 const avatarContentUrl = computed(() => normalizeBackendResourceUrl(auth.session?.AvatarContentUrl))
 const menuConversation = computed(() => chat.conversations.find(item => item.Id === conversationMenu.value?.id))
 const toggleCollapsed = () => { collapsed.value = !collapsed.value; localStorage.setItem('crosscart-ai-sidebar-collapsed', collapsed.value ? '1' : '0') }
+const loadMoreConversations = () => { void chat.loadMoreConversations() }
+const handleConversationScroll = (event: Event) => {
+  const target = event.currentTarget as HTMLElement
+  if (target.scrollHeight - target.scrollTop - target.clientHeight <= 64) loadMoreConversations()
+}
 const newChat = async () => { await chat.create(); await router.replace({ name: 'chat', query: chat.currentId ? { conversation: chat.currentId } : {} }); emit('close') }
 const select = async (id: string) => { await chat.select(id); await router.replace({ name: 'chat', query: { conversation: id } }); emit('close') }
 const openConversationMenu = (event: MouseEvent, item: { Id: string; Title: string }) => {
@@ -87,14 +94,24 @@ const toggleTheme = () => { theme.value = nextTheme(theme.value); applyWorkspace
       <button disabled title="需要后端返回真实 Agent 清单"><Icon icon="lucide:boxes" /><span>业务 Agent 由服务端配置</span></button>
     </section>
 
-    <section v-if="!collapsed" class="sidebar-group recent-group">
-      <div class="sidebar-group-title">最近任务</div>
+    <section v-if="!collapsed" class="sidebar-group recent-group" :aria-busy="chat.conversationsLoadingMore" @scroll.passive="handleConversationScroll">
+      <div class="sidebar-group-title">会话历史</div>
       <div v-if="!auth.session" class="sidebar-empty">登录后同步真实会话</div>
-      <div v-else-if="!filtered.length" class="sidebar-empty">暂无匹配会话</div>
-      <div v-for="item in filtered" v-else :key="item.Id" :class="['recent-task', { active: item.Id === chat.currentId }]" role="button" tabindex="0" @click="select(item.Id)" @keydown.enter="select(item.Id)" @dblclick.prevent.stop="beginAction('rename', item)" @contextmenu="openConversationMenu($event, item)">
-        <span v-if="chat.conversationStatuses[item.Id] === 'running'" class="conversation-run-status running" title="正在生成"><Icon icon="lucide:loader-circle" /></span><Icon v-else icon="lucide:message-square" /><span>{{ item.Title || '新会话' }}</span>
-        <button class="task-menu-trigger" title="会话操作" aria-label="会话操作" @click.stop="openConversationMenu($event, item)" @keydown.enter="openConversationMenuKeyboard($event, item)"><Icon icon="lucide:ellipsis" /></button>
-      </div>
+      <template v-else>
+        <div v-if="!filtered.length" class="sidebar-empty">暂无匹配会话</div>
+        <template v-for="group in groupedConversations" v-else :key="group.key">
+          <div class="conversation-period-title">{{ group.label }}</div>
+          <div v-for="item in group.items" :key="item.Id" :class="['recent-task', { active: item.Id === chat.currentId }]" role="button" tabindex="0" @click="select(item.Id)" @keydown.enter="select(item.Id)" @dblclick.prevent.stop="beginAction('rename', item)" @contextmenu="openConversationMenu($event, item)">
+            <span v-if="chat.conversationStatuses[item.Id] === 'running'" class="conversation-run-status running" title="正在生成"><Icon icon="lucide:loader-circle" /></span><Icon v-else icon="lucide:message-square" /><span>{{ item.Title || '新会话' }}</span>
+            <button class="task-menu-trigger" title="会话操作" aria-label="会话操作" @click.stop="openConversationMenu($event, item)" @keydown.enter="openConversationMenuKeyboard($event, item)"><Icon icon="lucide:ellipsis" /></button>
+          </div>
+        </template>
+        <button v-if="chat.conversationsHasMore" class="conversation-load-more" type="button" :disabled="chat.conversationsLoadingMore" @click="loadMoreConversations">
+          <Icon :icon="chat.conversationsLoadingMore ? 'lucide:loader-circle' : 'lucide:chevrons-down'" />
+          <span>{{ chat.conversationsLoadingMore ? '正在加载' : '加载更早会话' }}</span>
+        </button>
+        <div v-else-if="filtered.length" class="conversation-list-end">已加载全部会话</div>
+      </template>
     </section>
 
     <div class="sidebar-account">

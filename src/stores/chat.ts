@@ -9,10 +9,13 @@ import { createSingleFlight, findReusableEmptyConversation, syncConversationMess
 import { conversationRunStatus, type ConversationRunStatus } from '@/utils/conversationRunStatus'
 import { collectWorkspaceArtifacts } from '@/utils/messageAttachments'
 import { createUuid } from '@/utils/uuid'
+import { normalizePersistedTraceSteps } from '@/utils/executionTrace'
+import { mergeConversationPages } from '@/utils/conversationHistory'
 import type { Artifact, Assistant, Attachment, ChatOptions, Conversation, Message, ParsedSseEvent, TraceStep } from '@/types/ai'
 
 const record = (data: unknown) => (data && typeof data === 'object' ? data as Record<string, any> : {})
 const pick = (data: Record<string, any>, pascal: string, camel: string) => data[pascal] ?? data[camel]
+const conversationPageSize = 50
 
 export const useChatStore = defineStore('chat', () => {
   const assistants = ref<Assistant[]>([]); const conversations = ref<Conversation[]>([])
@@ -24,19 +27,51 @@ export const useChatStore = defineStore('chat', () => {
   const lastOptions = ref<ChatOptions>({ Mode: 'auto' })
   const activeGenerationKind = ref<'image' | 'video' | 'file' | ''>('')
   const conversationStatuses = ref<Record<string, ConversationRunStatus>>({})
+  const conversationPage = ref(0)
+  const conversationsHasMore = ref(false)
+  const conversationsLoadingMore = ref(false)
+
+  function applyConversationPage(items: Conversation[], replace: boolean) {
+    conversations.value = replace ? mergeConversationPages([], items) : mergeConversationPages(conversations.value, items)
+    for (const item of items) {
+      const status = conversationRunStatus(item)
+      if (status) conversationStatuses.value[item.Id] = status
+      else delete conversationStatuses.value[item.Id]
+    }
+  }
+
+  async function fetchConversationPage(page: number, replace = false) {
+    const response = await aiApi.conversations({ Page: page, PageSize: conversationPageSize })
+    const items = Array.isArray(response) ? response : response.Items
+    applyConversationPage(items, replace)
+    conversationPage.value = Array.isArray(response) ? page : Number(response.Page) || page
+    conversationsHasMore.value = Array.isArray(response) ? false : response.HasMore
+  }
+
+  async function loadMoreConversations() {
+    if (!useAuthStore().session || conversationsLoadingMore.value || !conversationsHasMore.value) return
+    conversationsLoadingMore.value = true
+    try {
+      await fetchConversationPage(conversationPage.value + 1)
+    } catch (error) {
+      lastError.value = (error as Error).message
+    } finally {
+      conversationsLoadingMore.value = false
+    }
+  }
 
   async function bootstrap(conversationId?: string) {
     loading.value = true; lastError.value = ''
     try {
       if (!useAuthStore().session) {
         assistants.value = [{ Id: 'public', Name: useSettingsStore().brand, IsEnabled: 1 }]
-        conversations.value = []; currentId.value = ''; messages.value = []; loginRequired.value = false
+        conversations.value = []; conversationPage.value = 0; conversationsHasMore.value = false
+        currentId.value = ''; messages.value = []; loginRequired.value = false
         return
       }
       assistants.value = (await aiApi.assistants()).filter(x => x.IsEnabled !== 0)
-      const response = await aiApi.conversations({ Page: 1, PageSize: 100 })
-      conversations.value = Array.isArray(response) ? response : response.Items
-      conversationStatuses.value = Object.fromEntries(conversations.value.map(item => [item.Id, conversationRunStatus(item)]).filter((entry): entry is [string, ConversationRunStatus] => Boolean(entry[1])))
+      conversationStatuses.value = {}
+      await fetchConversationPage(1, true)
       const requested = conversationId && conversations.value.some(x => x.Id === conversationId) ? conversationId : conversations.value[0]?.Id
       if (requested) await select(requested)
     } catch (error) { lastError.value = (error as Error).message }
@@ -51,7 +86,7 @@ export const useChatStore = defineStore('chat', () => {
     const selectedConversation = conversations.value.find(item => item.Id === id)
     syncConversationMessageState(selectedConversation, messages.value.length)
     const latest = [...messages.value].reverse().find(x => x.Role === 'assistant')
-    traces.value = latest?.AgentRun?.Steps || []
+    traces.value = latest?.AgentRun?.Steps?.length ? latest.AgentRun.Steps : normalizePersistedTraceSteps(latest?.ToolSteps)
     artifacts.value = collectWorkspaceArtifacts(messages.value)
   }
 
@@ -64,6 +99,7 @@ export const useChatStore = defineStore('chat', () => {
     syncConversationMessageState(current.value, persisted.length)
     const latest = [...persisted].reverse().find(item => item.Role === 'assistant')
     if (latest?.AgentRun?.Steps?.length) traces.value = latest.AgentRun.Steps
+    else if (latest?.ToolSteps?.length) traces.value = normalizePersistedTraceSteps(latest.ToolSteps)
     artifacts.value = collectWorkspaceArtifacts(persisted)
   }
 
@@ -110,6 +146,7 @@ export const useChatStore = defineStore('chat', () => {
       const stage = String(pick(data, 'Stage', 'stage') || 'started')
       const existing = traces.value.find(x => x.StepId === invocation)
       const patch: TraceStep = { StepId: invocation, Title: String(pick(data, 'Message', 'message') || pick(data, 'ToolCode', 'toolCode') || '执行只读业务工具'), ToolCode: pick(data, 'ToolCode', 'toolCode'), Status: stage === 'completed' ? 'completed' : stage === 'failed' ? 'failed' : 'running', ElapsedMs: Number(pick(data, 'ElapsedMs', 'elapsedMs') || 0) || undefined }
+      if (!existing && patch.Status === 'running') patch.StartedAtMs = Date.now()
       existing ? Object.assign(existing, patch) : traces.value.push(patch)
     } else if (event.event === 'run.started') {
       updateGenerationPlaceholder(traces.value, '正在分析任务', '已接收请求，正在组织执行步骤')
@@ -121,8 +158,10 @@ export const useChatStore = defineStore('chat', () => {
       const eventStatus = event.event.slice('step.'.length)
       const terminalStatuses = ['completed', 'failed', 'cancelled', 'blocked', 'skipped']
       const status = (terminalStatuses.includes(eventStatus) ? eventStatus : 'running') as TraceStep['Status']
-      const step: TraceStep = { StepId: id, Title: String(pick(payload, 'Title', 'title') || 'Agent 执行步骤'), Detail: pick(payload, 'Detail', 'detail'), Status: status, Progress: Number(pick(payload, 'Progress', 'progress') || 0) || undefined, ElapsedMs: Number(pick(payload, 'ElapsedMs', 'elapsedMs') || 0) || undefined }
-      const existing = traces.value.find(x => x.StepId === id); existing ? Object.assign(existing, step) : traces.value.push(step)
+      const step: TraceStep = { StepId: id, Title: String(pick(payload, 'Title', 'title') || 'Agent 执行步骤'), Detail: pick(payload, 'Detail', 'detail'), ToolCode: pick(payload, 'ToolCode', 'toolCode'), Status: status, Progress: Number(pick(payload, 'Progress', 'progress') || 0) || undefined, ElapsedMs: Number(pick(payload, 'ElapsedMs', 'elapsedMs') || 0) || undefined }
+      const existing = traces.value.find(x => x.StepId === id)
+      if (!existing && step.Status === 'running') step.StartedAtMs = Date.now()
+      existing ? Object.assign(existing, step) : traces.value.push(step)
     } else if (event.event === 'artifact.ready') {
       const payload = record(pick(data, 'Data', 'data') || data); const item = payload.Artifact || payload.artifact || payload
       const artifact = item as Artifact
@@ -167,7 +206,8 @@ export const useChatStore = defineStore('chat', () => {
     const acceptedConversation = current.value
     syncConversationMessageState(acceptedConversation, Math.max(acceptedConversation?.MessageCount || 0, messages.value.length))
     answer = messages.value.at(-1)!
-    traces.value = [createGenerationPlaceholder()]; artifacts.value = collectWorkspaceArtifacts(messages.value); lastError.value = ''; streaming.value = true; generationId.value = ''
+    const generationPlaceholder = createGenerationPlaceholder(); generationPlaceholder.StartedAtMs = startedAt
+    traces.value = [generationPlaceholder]; artifacts.value = collectWorkspaceArtifacts(messages.value); lastError.value = ''; streaming.value = true; generationId.value = ''
     if (!anonymous) conversationStatuses.value[currentId.value] = 'running'
     aborter.value = new AbortController()
     try {
@@ -183,7 +223,7 @@ export const useChatStore = defineStore('chat', () => {
         applyEvent(event, answer)
       }
       if (anonymous) await streamPublicChat({ Message: text.trim(), InternalModelAlias: options.InternalModelAlias }, aborter.value.signal, onEvent)
-      else await streamChat({ ConversationId: currentId.value, Message: text.trim(), AssistantId: currentAssistant.Id, PageContext: { Path: window.location.pathname, Title: document.title, Attachments: attachments }, Options: options }, aborter.value.signal, onEvent)
+      else await streamChat({ ConversationId: currentId.value, Message: text.trim(), AssistantId: current.value?.AssistantId || currentAssistant.Id, PageContext: { Path: window.location.pathname, Title: document.title, Attachments: attachments }, Options: options }, aborter.value.signal, onEvent)
       answer.Status = resolveTerminalMessageStatus(answer.Status, answer.Content)
       answer.TotalDurationMs ??= Math.max(0, Date.now() - startedAt)
       if (answer.Status === 'error' && !answer.ErrorMessage) {
@@ -224,5 +264,5 @@ export const useChatStore = defineStore('chat', () => {
     await send(lastUser.Content, lastUser.Attachments || [], { ...lastOptions.value })
   }
 
-  return { assistants, conversations, conversationStatuses, currentId, messages, traces, artifacts, loading, streaming, lastError, loginRequired, activeGenerationKind, current, assistant, bootstrap, select, create, remove, send, stop, retry }
+  return { assistants, conversations, conversationStatuses, conversationsHasMore, conversationsLoadingMore, currentId, messages, traces, artifacts, loading, streaming, lastError, loginRequired, activeGenerationKind, current, assistant, bootstrap, loadMoreConversations, select, create, remove, send, stop, retry }
 })

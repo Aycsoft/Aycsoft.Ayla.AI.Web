@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="了解 Ayla AI Workspace：Aycsoft 面向企业知识工作、联网研究、文件处理和多模态创作打造的开源 Web 工作台。"
+    />
+    <meta name="author" content="Peng Yang (杨鹏, Perry Yang, YangPeng)" />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+    <meta name="baiduspider" content="index,follow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="关于 Ayla AI Workspace · Aycsoft" />
+    <meta
+      property="og:description"
+      content="企业级智能对话、联网研究、文档生成、图片与视频创作的一体化 Web 工作台。"
+    />
+    <link rel="icon" href="./ayla-logo.png" type="image/png" />
+    <title>关于 Ayla AI Workspace · Aycsoft</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "AboutPage",
+        "name": "关于 Ayla AI Workspace",
+        "about": {
+          "@type": "SoftwareApplication",
+          "name": "Ayla AI Workspace",
+          "alternateName": ["Ayla", "Aycsoft Ayla AI"],
+          "applicationCategory": "BusinessApplication",
+          "codeRepository": "https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web",
+          "creator": {
+            "@type": "Person",
+            "name": "Peng Yang",
+            "alternateName": ["杨鹏", "Perry Yang", "YangPeng"]
+          }
+        }
+      }
+    </script>
+    <style>
+      :root { color-scheme: light dark; font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #172033; background: #f5f7fb; line-height: 1.75; }
+      main { width: min(1040px, calc(100% - 40px)); margin: 0 auto; padding: 72px 0 88px; }
+      header { display: grid; grid-template-columns: 72px 1fr; gap: 22px; align-items: center; margin-bottom: 48px; }
+      header img { width: 72px; height: 72px; object-fit: contain; }
+      h1 { margin: 0; font-size: clamp(34px, 6vw, 64px); line-height: 1.08; letter-spacing: -.04em; }
+      .eyebrow { margin: 0 0 6px; color: #3478f6; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+      .lead { max-width: 780px; color: #526078; font-size: 19px; }
+      .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 54px; }
+      .actions a { padding: 10px 18px; border: 1px solid #d7deeb; border-radius: 12px; color: inherit; text-decoration: none; background: #fff; }
+      .actions a:first-child { color: #fff; border-color: #3478f6; background: #3478f6; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+      article { padding: 24px; border: 1px solid #e1e6ef; border-radius: 18px; background: #fff; }
+      h2 { margin: 0 0 8px; font-size: 20px; }
+      article p { margin: 0; color: #657086; }
+      footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid #dfe5ef; color: #657086; }
+      @media (max-width: 720px) { main { padding-top: 40px; } .grid { grid-template-columns: 1fr; } }
+      @media (prefers-color-scheme: dark) {
+        body { color: #edf3ff; background: #0d1119; }
+        .lead, article p, footer { color: #9da9bc; }
+        article, .actions a { background: #151b26; border-color: #2a3445; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="./ayla-logo.png" alt="Ayla AI Workspace 标志" />
+        <div>
+          <p class="eyebrow">Aycsoft AI Workspace</p>
+          <h1>Ayla，让工作更简单</h1>
+        </div>
+      </header>
+      <p class="lead">
+        Ayla AI Workspace 是 Aycsoft 面向企业知识工作与内容创作打造的多模态 AI 工作台。它把对话、联网研究、文件处理、文档生成、图片与视频创作、知识库和企业业务连接整合在同一套可追踪的工作流中。
+      </p>
+      <nav class="actions" aria-label="项目入口">
+        <a href="./#/chat">打开 Ayla 工作台</a>
+        <a href="https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web">查看 GitHub 开源仓库</a>
+      </nav>
+      <section class="grid" aria-label="Ayla 主要能力">
+        <article><h2>智能对话与深度研究</h2><p>流式回答、推理步骤、联网搜索、页面读取、来源引用与结果核验，让复杂问题的处理过程可理解、可追踪。</p></article>
+        <article><h2>文件与文档工作流</h2><p>支持附件分析、多文件资产目录，以及 PDF、Word、Excel、PowerPoint 等文档的规划、生成、预览与下载。</p></article>
+        <article><h2>图片与视频创作</h2><p>提供文生图、图生图、文生视频和图生视频工作模式，并为长任务展示阶段进度、预计时间和可恢复错误。</p></article>
+        <article><h2>企业知识与业务连接</h2><p>通过企业 SSO、权限边界、知识库与后端工具连接业务系统；外部用户仍可安全使用通用 AI 和文件创作能力。</p></article>
+        <article><h2>开发者工作区</h2><p>富文本与代码高亮、可复制代码块、右侧文件目录、HTML 安全预览和可调整工作区，适合开发与知识协作。</p></article>
+        <article><h2>安全与可观测性</h2><p>模型密钥只保存在可信服务端，前后置安全策略、健康检查、Token 用量、实时耗时和失败恢复共同保障运行体验。</p></article>
+      </section>
+      <footer>
+        <strong>Ayla / Aycsoft</strong> · Creator: 杨鹏（Peng Yang / Perry Yang / YangPeng） · MIT License
+      </footer>
+    </main>
+  </body>
+</html>

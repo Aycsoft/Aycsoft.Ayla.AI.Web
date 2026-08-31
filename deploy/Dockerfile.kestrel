@@ -1,0 +1,8 @@
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+USER $APP_UID
+WORKDIR /app
+COPY host/ .
+COPY dist/ ./wwwroot/
+ENV AiApiBaseUrl=http://crosscart-ai:8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "CrossCart.AI.Web.Host.dll"]

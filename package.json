@@ -1,10 +1,29 @@
 {
   "name": "crosscart-ai-web",
   "version": "1.0.0",
+  "description": "Ayla AI Workspace by Aycsoft — enterprise AI chat, research, document generation, multimodal creation and knowledge collaboration.",
   "private": true,
   "type": "module",
   "author": "Peng Yang (Perry Yang)",
   "license": "MIT",
+  "homepage": "https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web/issues"
+  },
+  "keywords": [
+    "ayla",
+    "aycsoft",
+    "enterprise-ai",
+    "ai-workspace",
+    "multimodal-ai",
+    "vue3",
+    "peng-yang",
+    "yangpeng"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",

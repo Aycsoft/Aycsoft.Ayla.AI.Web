@@ -7,7 +7,7 @@ import { sanitizeReasoningText } from '@/utils/reasoningSafety'
 const chat = useChatStore()
 const elapsed = computed(() => Math.max(0, ...chat.traces.map(x => x.ElapsedMs || 0)))
 const seconds = computed(() => elapsed.value ? Math.max(1, Math.round(elapsed.value / 1000)) : 0)
-const thinking = computed(() => chat.traces.filter(x => !x.ToolCode).length)
+const thinking = computed(() => chat.traces.length)
 const summary = computed(() => chat.streaming
   ? '执行中'
   : seconds.value

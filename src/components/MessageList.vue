@@ -12,6 +12,7 @@ import ArtifactOutputCard from '@/components/ArtifactOutputCard.vue'
 import TokenUsagePanel from '@/components/TokenUsagePanel.vue'
 import FeedbackDialog from '@/components/FeedbackDialog.vue'
 import GenerationProgressCard from '@/components/GenerationProgressCard.vue'
+import SourceFavicon from '@/components/SourceFavicon.vue'
 import type { Artifact, Message } from '@/types/ai'
 import { citationHost, citationTitle, citationUrl } from '@/utils/messagePresentation'
 import { formatElapsedTime } from '@/utils/elapsedTime'
@@ -78,7 +79,7 @@ const messageElapsed = (message: Message) => {
             <div v-if="artifacts(message).length" class="artifact-output-list"><ArtifactOutputCard v-for="artifact in artifacts(message)" :key="artifact.ArtifactId" :artifact="artifact" :progress="artifactProgress(artifact)" /></div>
           </div>
           <MessageAttachmentList v-if="message.Attachments?.length" :files="message.Attachments" />
-          <div v-if="citations(message).length" class="citations"><details open><summary>参考来源 · {{ citations(message).length }}</summary><ol><li v-for="(source, index) in citations(message)" :key="`${citationUrl(source)}-${index}`"><a v-if="citationUrl(source)" :href="citationUrl(source)" target="_blank" rel="noopener noreferrer nofollow"><span>{{ citationTitle(source) }}</span><small>{{ citationHost(source) || '打开来源' }}</small><Icon icon="lucide:external-link" /></a><span v-else><span>{{ citationTitle(source) }}</span><small>{{ source.Section || (source.Page ? `第 ${source.Page} 页` : '授权业务来源') }}</small></span></li></ol></details></div>
+          <div v-if="citations(message).length" class="citations"><details><summary><Icon icon="lucide:book-open-text" />参考来源 · {{ citations(message).length }}</summary><ol><li v-for="(source, index) in citations(message)" :key="`${citationUrl(source)}-${index}`"><a v-if="citationUrl(source)" :href="citationUrl(source)" target="_blank" rel="noopener noreferrer nofollow"><span class="citation-primary"><SourceFavicon :url="citationUrl(source)" /><span>{{ citationTitle(source) }}</span></span><small>{{ citationHost(source) || '打开来源' }}</small><Icon class="citation-external" icon="lucide:arrow-up-right" /></a><span v-else><span class="citation-primary"><span class="source-favicon"><Icon icon="lucide:file-text" /></span><span>{{ citationTitle(source) }}</span></span><small>{{ source.Section || (source.Page ? `第 ${source.Page} 页` : '授权业务来源') }}</small></span></li></ol></details></div>
           <div v-if="message.ErrorMessage" class="inline-error"><Icon icon="lucide:circle-alert" />{{ message.ErrorMessage }}</div>
           <footer v-if="message.Content || message.Status === 'error' || message.Status === 'stopped'" class="message-actions">
             <button @click="copy(message.Content)" aria-label="复制" title="复制"><Icon icon="lucide:copy" /></button>

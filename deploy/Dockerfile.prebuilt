@@ -1,0 +1,7 @@
+FROM nginx:1.27-alpine
+
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY dist/ /usr/share/nginx/html/ai-workbench/
+
+EXPOSE 80
+HEALTHCHECK --interval=15s --timeout=5s --retries=10 CMD wget -q -O /dev/null http://127.0.0.1/ai-workbench/ || exit 1

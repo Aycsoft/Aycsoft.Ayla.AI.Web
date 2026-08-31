@@ -8,3 +8,6 @@ coverage/
 output/
 ui-audit/
 *.log
+.codex-artifacts/
+deploy/Host/bin/
+deploy/Host/obj/

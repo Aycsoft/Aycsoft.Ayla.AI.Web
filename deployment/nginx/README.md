@@ -5,6 +5,7 @@
 - Web：`http://localhost/ai-workbench/#/chat`
 - API：`http://localhost/api/*`
 - Nginx 到 API：`http://localhost:5088`
+- 搜索发现：`http://localhost/robots.txt`、`http://localhost/sitemap.xml`、`http://localhost/ai-workbench/about.html`
 
 同源部署可确保外部用户 Cookie、SSO Cookie、附件上传、生成文件预览/下载和 SSE 会话流都走同一个站点，不需要开放跨域凭据。
 

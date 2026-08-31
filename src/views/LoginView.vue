@@ -39,7 +39,8 @@ const error = ref('')
 const countdown = ref(0)
 let countdownTimer: ReturnType<typeof setInterval> | undefined
 
-const loginUrl = String(import.meta.env.VITE_SSO_LOGIN_URL || (import.meta.env.DEV ? 'http://localhost:4000/#/ai/sso/authorize' : '')).trim()
+const portalOrigin = String(import.meta.env.VITE_PORTAL_ORIGIN || `${window.location.protocol}//${window.location.hostname}:4000`).replace(/\/$/, '')
+const loginUrl = String(import.meta.env.VITE_SSO_LOGIN_URL || `${portalOrigin}/#/ai/sso/authorize`).trim()
 const internalConfigured = computed(() => Boolean(loginUrl))
 const codeLabel = computed(() => countdown.value > 0 ? `${countdown.value} 秒后重发` : '获取验证码')
 const codePurpose = computed<ExternalAuthScene>(() => resettingPassword.value ? 'reset-password' : scene.value)
@@ -152,8 +153,12 @@ async function submitExternal() {
         </div>
 
         <div v-if="channel === 'internal'" class="internal-auth">
-          <div class="auth-info"><Icon icon="lucide:lock-keyhole" /><span><strong>CrossCart 统一身份认证</strong><small>将前往 ERP 登录，完成后自动安全返回 AI 工作台。</small></span></div>
-          <button class="auth-primary" type="button" :disabled="!internalConfigured" @click="enterPortal"><span>前往 ERP 登录</span><Icon icon="lucide:arrow-right" /></button>
+          <div class="internal-provider">
+            <div class="internal-provider-brand"><span><Icon icon="lucide:building-2" /></span><div><strong>CrossCart 企业账号</strong><small>统一身份认证 · 组织权限自动同步</small></div><Icon icon="lucide:badge-check" /></div>
+            <ol class="internal-auth-flow"><li><span>1</span>前往 ERP 登录</li><li><span>2</span>确认企业身份</li><li><span>3</span>返回当前工作台</li></ol>
+            <p><Icon icon="lucide:shield-check" />登录完成后将按当前账号权限访问企业资源。</p>
+          </div>
+          <button class="auth-primary" type="button" :disabled="!internalConfigured" @click="enterPortal"><span>使用企业账号继续</span><Icon icon="lucide:arrow-right" /></button>
           <p v-if="!internalConfigured" class="auth-error"><Icon icon="lucide:triangle-alert" /> 当前环境尚未配置 ERP 统一登录地址。</p>
         </div>
 
@@ -186,7 +191,6 @@ async function submitExternal() {
           </fieldset>
           <p v-if="error" class="auth-error" role="alert"><Icon icon="lucide:circle-alert" /> {{ error }}</p>
           <button class="auth-primary" type="submit" :disabled="submitting || !canSubmit"><span>{{ submitting ? '正在验证…' : resettingPassword ? '重置密码' : scene === 'register' ? '创建账号并进入' : '登录并进入' }}</span><Icon :icon="submitting ? 'lucide:loader-circle' : 'lucide:arrow-right'" /></button>
-          <p class="auth-assurance"><Icon icon="lucide:shield" /> 登录状态由安全 Cookie 保存，不在浏览器存储访问令牌</p>
         </form>
       </div>
     </section>
