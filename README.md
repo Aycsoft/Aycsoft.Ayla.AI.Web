@@ -21,9 +21,17 @@
 
 ![Ayla 流式对话与执行链路](docs/screenshots/chat-workflow.png)
 
+### 代码生成预览
+
+![Ayla 代码生成与预览](docs/screenshots/ghtml.png)
+
 ### 图片生成工作区
 
 ![Ayla 图片生成工作区](docs/screenshots/image-generation-workspace.png)
+
+### 以图生图工作区
+
+![Ayla 以图生图工作区](docs/screenshots/gimage.png)
 
 ### 视频生成工作区
 
@@ -37,24 +45,24 @@
 
 ![Ayla 图文 PDF 生成结果](docs/screenshots/generated-biography-pdf.png)
 
-### 搜索引擎可抓取的项目介绍页
+<!-- ### 搜索引擎可抓取的项目介绍页 -->
 
-![Ayla 项目介绍页](docs/screenshots/project-overview.png)
+<!-- ![Ayla 项目介绍页](docs/screenshots/project-overview.png) -->
 
 ## 核心能力
 
-| 能力域 | 已实现的交互 |
-| --- | --- |
-| 智能对话 | SSE 流式输出、深度思考、执行步骤、实时耗时、停止与重试、模型故障恢复 |
-| 联网研究 | 搜索、页面读取、来源卡片、网站图标、引用去重、默认折叠与可核验链接 |
-| 文件处理 | 多附件上传、历史附件恢复、预览和下载、文件类型识别、任务资产目录 |
-| 文档生成 | 文档规划、阶段进度、PDF / DOCX / XLSX / PPTX 结果、右侧工作区预览 |
-| 多模态生成 | 独立图片与视频模式、文生图、图生图、文生视频、图生视频、固定案例提示 |
-| 代码工作区 | Markdown / GFM、语法高亮、代码复制、文件树、HTML 安全运行预览 |
-| 会话管理 | 最近 / 近 7 天 / 近 30 天分组、分页加载、搜索、重命名、删除、运行状态 |
-| 用户与协作 | 企业 SSO、外部邮箱账户、密码、头像、个人资料、会话记忆、反馈中心 |
-| 知识生产 | 知识库、用户 Skill、Markdown 笔记与可复用的输出规范 |
-| 可观测性 | Token 用量、阶段状态、预计耗时、健康检查和不会击穿整页的错误提示 |
+| 能力域     | 已实现的交互                                                          |
+| ---------- | --------------------------------------------------------------------- |
+| 智能对话   | SSE 流式输出、深度思考、执行步骤、实时耗时、停止与重试、模型故障恢复  |
+| 联网研究   | 搜索、页面读取、来源卡片、网站图标、引用去重、默认折叠与可核验链接    |
+| 文件处理   | 多附件上传、历史附件恢复、预览和下载、文件类型识别、任务资产目录      |
+| 文档生成   | 文档规划、阶段进度、PDF / DOCX / XLSX / PPTX 结果、右侧工作区预览     |
+| 多模态生成 | 独立图片与视频模式、文生图、图生图、文生视频、图生视频、固定案例提示  |
+| 代码工作区 | Markdown / GFM、语法高亮、代码复制、文件树、HTML 安全运行预览         |
+| 会话管理   | 最近 / 近 7 天 / 近 30 天分组、分页加载、搜索、重命名、删除、运行状态 |
+| 用户与协作 | 企业 SSO、外部邮箱账户、密码、头像、个人资料、会话记忆、反馈中心      |
+| 知识生产   | 知识库、用户 Skill、Markdown 笔记与可复用的输出规范                   |
+| 可观测性   | Token 用量、阶段状态、预计耗时、健康检查和不会击穿整页的错误提示      |
 
 ## 系统边界
 
@@ -101,16 +109,16 @@ pnpm dev
 
 ## 环境变量
 
-| 变量 | 用途 |
-| --- | --- |
-| `VITE_API_BASE_URL` | 浏览器访问的 API 根路径；生产同源部署推荐 `/api` |
-| `VITE_DEV_PROXY_TARGET` | Vite 本地开发代理目标 |
-| `VITE_APP_BASE_PATH` | Web 部署子路径，默认 `/ai-workbench/` |
-| `VITE_SSO_LOGIN_URL` | 企业 SSO 授权入口 |
-| `VITE_PORTAL_ORIGIN` | CrossCart Portal 地址 |
-| `VITE_DEFAULT_AI_LOGO_URL` | 未配置服务端 Logo 时使用的透明 Logo |
-| `VITE_HOST` | 开发和预览监听地址，默认 `0.0.0.0` |
-| `VITE_PORT` | 本地开发端口，默认 `5176` |
+| 变量                       | 用途                                             |
+| -------------------------- | ------------------------------------------------ |
+| `VITE_API_BASE_URL`        | 浏览器访问的 API 根路径；生产同源部署推荐 `/api` |
+| `VITE_DEV_PROXY_TARGET`    | Vite 本地开发代理目标                            |
+| `VITE_APP_BASE_PATH`       | Web 部署子路径，默认 `/ai-workbench/`            |
+| `VITE_SSO_LOGIN_URL`       | 企业 SSO 授权入口                                |
+| `VITE_PORTAL_ORIGIN`       | CrossCart Portal 地址                            |
+| `VITE_DEFAULT_AI_LOGO_URL` | 未配置服务端 Logo 时使用的透明 Logo              |
+| `VITE_HOST`                | 开发和预览监听地址，默认 `0.0.0.0`               |
+| `VITE_PORT`                | 本地开发端口，默认 `5176`                        |
 
 > 不要把 API Key、邮箱授权码、数据库连接串或签名密钥写入 `VITE_*`。所有 Vite 环境变量都会进入浏览器产物。
 
@@ -148,7 +156,7 @@ pnpm build
 - 品牌：**Aycsoft**
 - 创建者：**杨鹏 / Peng Yang / Perry Yang / YangPeng**
 
-公开部署后还需要在 Google Search Console 与百度搜索资源平台验证真实域名并提交站点地图。具体检查清单见 [docs/seo-and-discovery.md](docs/seo-and-discovery.md)。搜索引擎是否以及何时收录由其抓取和质量系统决定，仓库不能承诺即时排名。
+<!-- 公开部署后还需要在 Google Search Console 与百度搜索资源平台验证真实域名并提交站点地图。具体检查清单见 [docs/seo-and-discovery.md](docs/seo-and-discovery.md)。搜索引擎是否以及何时收录由其抓取和质量系统决定，仓库不能承诺即时排名。 -->
 
 ## 作者与品牌
 
