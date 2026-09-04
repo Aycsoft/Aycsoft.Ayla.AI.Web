@@ -74,7 +74,11 @@ onBeforeUnmount(() => { if (countdownTimer) clearInterval(countdownTimer) })
 
 function enterPortal() {
   if (!loginUrl) return
-  const callback = buildWorkspaceRouteUrl('/auth/sso/callback', { conversationId: String(route.query.conversationId || '').trim() || undefined })
+  const callback = buildWorkspaceRouteUrl(
+    '/auth/sso/callback',
+    { conversationId: String(route.query.conversationId || '').trim() || undefined },
+    String(import.meta.env.VITE_WORKSPACE_ORIGIN || window.location.origin)
+  )
   window.location.assign(buildErpAuthorizeUrl(loginUrl, callback.toString()).toString())
 }
 

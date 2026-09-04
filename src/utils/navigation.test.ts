@@ -17,4 +17,15 @@ describe('workspace navigation', () => {
     expect(routeAfterSessionProbeFailure('chat')).toBe(true)
     expect(routeAfterSessionProbeFailure('knowledge')).toEqual({ name: 'chat' })
   })
+
+  it('uses the canonical workspace domain and keeps the ERP authorize hash route', () => {
+    const callback = buildWorkspaceRouteUrl('/auth/sso/callback', { conversationId: 'c-1' },
+      'https://aichat.yueyaoinfo.com', '/ai-workbench/').toString()
+    const target = buildErpAuthorizeUrl('https://www.yueyaoinfo.com/#/ai/sso/authorize', callback,
+      'http://localhost:5176')
+    expect(target.origin).toBe('https://www.yueyaoinfo.com')
+    expect(target.hash.split('?')[0]).toBe('#/ai/sso/authorize')
+    expect(new URLSearchParams(target.hash.split('?')[1]).get('returnUrl'))
+      .toBe('https://aichat.yueyaoinfo.com/ai-workbench/#/auth/sso/callback?conversationId=c-1')
+  })
 })
