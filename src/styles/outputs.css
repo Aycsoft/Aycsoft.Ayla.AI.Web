@@ -1,0 +1,289 @@
+/* 结构化消息、代码运行预览与生成产物展示。
+ * 由 styles.css 按固定顺序加载；跨模块覆盖不可随意移动。
+ */
+/* Typed conversation outputs and isolated code execution. */
+.rich-message-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  white-space: normal;
+}
+.message-text-segment {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.code-card {
+  width: 100%;
+  margin: 7px 0;
+  border: 1px solid #dfe4ea;
+  border-radius: 12px;
+  background: #10151d;
+  color: #d9e2ef;
+  overflow: hidden;
+  text-align: left;
+}
+.code-card > header {
+  min-height: 38px;
+  margin: 0 !important;
+  padding: 0 9px 0 12px;
+  border-bottom: 1px solid #27313e;
+  background: #171d26;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.code-card > header > span,
+.code-card > header > div {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.code-card > header > span {
+  font:
+    11px ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  color: #aab7c7;
+}
+.code-card button {
+  height: 25px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #aeb9c7;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+}
+.code-card button:hover:not(:disabled) {
+  background: #283342;
+  color: #fff;
+}
+.code-card button:disabled {
+  opacity: 0.36;
+  cursor: not-allowed;
+}
+.code-card button.danger {
+  color: #ff918a;
+}
+.code-card > pre,
+.code-card > textarea {
+  width: 100%;
+  min-height: 80px;
+  max-height: 420px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 0;
+  outline: 0;
+  overflow: auto;
+  background: #10151d;
+  color: #d9e2ef;
+  font:
+    12px/1.65 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  tab-size: 2;
+  resize: vertical;
+}
+.code-result {
+  padding: 9px 12px;
+  border-top: 1px solid #27313e;
+  background: #111b18;
+  color: #b7e4c7;
+}
+.code-result.error {
+  background: #201615;
+  color: #ffaaa5;
+}
+.code-result strong {
+  font-size: 10px;
+}
+.code-result pre {
+  margin: 5px 0 0;
+  white-space: pre-wrap;
+  font:
+    11px/1.55 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.code-preview {
+  display: block;
+  width: 100%;
+  height: 220px;
+  border: 0;
+  border-top: 1px solid #27313e;
+  background: #fff;
+}
+.code-card > footer {
+  padding: 7px 11px;
+  border-top: 1px solid #27313e;
+  color: #7f8c9c;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.typed-attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+}
+.typed-attachment-list > a {
+  width: min(260px, 100%);
+  min-height: 54px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+}
+.typed-attachment-list img,
+.typed-attachment-list video {
+  width: 88px;
+  height: 62px;
+  object-fit: cover;
+  background: var(--surface-subtle);
+}
+.typed-attachment-list audio {
+  width: 230px;
+  height: 38px;
+  margin: 8px;
+}
+.file-icon {
+  width: 46px;
+  height: 46px;
+  margin-left: 5px;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  font-size: 20px;
+}
+.file-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding-right: 8px;
+}
+.file-meta strong {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-meta small {
+  font-size: 9px;
+  color: var(--muted);
+}
+.artifact-output-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 9px;
+  margin: 12px 0;
+}
+.artifact-output-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.artifact-output-card > img,
+.artifact-output-card > video {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  background: var(--surface-subtle);
+}
+.artifact-output-card > audio {
+  width: calc(100% - 20px);
+  margin: 10px;
+}
+.artifact-file {
+  height: 94px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-subtle);
+  font-size: 30px;
+  color: var(--primary);
+}
+.artifact-output-card > footer {
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.artifact-output-card > footer > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.artifact-output-card > footer strong {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.artifact-output-card > footer small {
+  font-size: 9px;
+  color: var(--muted);
+}
+.artifact-output-card > footer a {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.artifact-progress {
+  padding: 13px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.artifact-progress > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.artifact-progress > span svg {
+  animation: spin 1s linear infinite;
+}
+.artifact-progress > div {
+  grid-column: 1/-1;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--surface-subtle);
+  overflow: hidden;
+}
+.artifact-progress i {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  border-radius: 4px;
+  transition: width 0.25s;
+}
+.artifact-progress.failed {
+  color: var(--danger);
+}
+.artifact-progress.failed > span svg {
+  animation: none;
+}

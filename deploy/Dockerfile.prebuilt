@@ -1,3 +1,4 @@
+# 预构建静态镜像：构建上下文需提供 dist/ 与本目录的 nginx.conf。
 FROM nginx:1.27-alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf

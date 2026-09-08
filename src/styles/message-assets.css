@@ -1,0 +1,316 @@
+/* 媒体灵感定位、正文附件分层与紧凑文件行。
+ * 由 styles.css 按固定顺序加载；跨模块覆盖不可随意移动。
+ */
+/* 媒体灵感与案例属于聊天工作区，不参与输入框自身的高度和滚动计算。 */
+.chat-center > .media-workspace-panel {
+  top: 58px;
+  bottom: auto;
+  max-height: min(250px, 32dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.chat-center > .media-workspace-panel .media-recommendations > div {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1px;
+  scrollbar-width: thin;
+}
+.chat-center > .media-workspace-panel .media-recommendations button {
+  min-width: 0;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.chat-center > .media-workspace-panel .media-recommendations button > span {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.chat-center > .media-workspace-panel .media-recommendations button strong,
+.chat-center > .media-workspace-panel .media-recommendations button small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-center > .media-workspace-panel .media-recommendations button > svg,
+.chat-center > .media-workspace-panel header svg,
+.generation-guidance > svg,
+.creation-tabs svg,
+.composer-options button > svg {
+  flex: 0 0 auto;
+}
+.chat-center > .media-workspace-panel .media-recommendations button > svg:last-child {
+  margin-left: auto;
+}
+.chat-center > .media-workspace-panel .media-case-grid {
+  padding: 1px;
+  scrollbar-width: thin;
+}
+.chat-center:has(> .media-workspace-panel) .message-list {
+  padding-top: 190px;
+  padding-bottom: 174px;
+}
+.chat-center.empty:has(> .media-workspace-panel) .empty-workspace {
+  padding: 190px 24px 180px;
+}
+
+.workspace-service-notice {
+  position: absolute;
+  z-index: 22;
+  top: 54px;
+  left: 50%;
+  width: min(760px, calc(100% - 32px));
+  transform: translateX(-50%);
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--danger) 24%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface));
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--danger);
+}
+.workspace-service-notice > svg {
+  flex: 0 0 auto;
+  font-size: 18px;
+}
+.workspace-service-notice > span {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.workspace-service-notice strong {
+  font-size: 11px;
+}
+.workspace-service-notice small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 9px;
+}
+.workspace-service-notice button {
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--border));
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+}
+.chat-center:has(> .workspace-service-notice) > .media-workspace-panel {
+  top: 108px;
+}
+.chat-center.empty:has(> .workspace-service-notice) .empty-workspace {
+  padding-top: 230px;
+}
+.chat-center.empty:has(> .workspace-service-notice):has(> .media-workspace-panel) .empty-workspace {
+  padding-top: 245px;
+}
+
+/* 用户正文气泡与附件卡片分层，避免附件被灰色气泡再次包裹。 */
+.message.user .user-message {
+  max-width: 78%;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.message.user .user-message-bubble {
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f3f3f3;
+  color: var(--mm-text);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.message.user .typed-attachment-list {
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
+/* 生成进度和真实资产始终沿同一内容列排版，避免窄卡片并排挤压预览。 */
+.generation-output-stack {
+  width: min(100%, 720px);
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.generation-output-stack .generation-progress-card {
+  width: 100%;
+  margin: 0;
+}
+.generation-output-stack .artifact-output-list {
+  width: 100%;
+  margin: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.generation-orbit {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 760px) {
+  .chat-center > .media-workspace-panel {
+    top: 52px;
+    max-height: min(250px, 34dvh);
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .chat-center > .media-workspace-panel .media-cases {
+    display: block;
+  }
+  .chat-center > .media-workspace-panel .media-recommendations button {
+    flex: 0 0 168px;
+  }
+  .chat-center:has(> .media-workspace-panel) .message-list {
+    padding-top: 270px;
+  }
+  .chat-center.empty:has(> .media-workspace-panel) .empty-workspace {
+    padding: 260px 16px 170px;
+  }
+  .message.user .user-message {
+    max-width: 88%;
+  }
+  .workspace-service-notice {
+    top: 50px;
+  }
+  .chat-center:has(> .workspace-service-notice) > .media-workspace-panel {
+    top: 106px;
+  }
+  .generation-progress-card {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    padding-inline: 11px;
+  }
+}
+
+/* Attachments and progress assets share a compact, non-wrapping file-row contract. */
+.progress-step,
+.progress-detail > button {
+  width: 100%;
+  min-width: 0;
+  min-height: 27px;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px;
+  color: #666;
+  font-size: 11px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.progress-detail > button:hover {
+  background: var(--surface-subtle);
+  border-radius: 6px;
+}
+.progress-step > svg,
+.progress-detail > button > svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  font-size: 12px;
+}
+.progress-step > span,
+.progress-detail > button > span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.progress-step > small {
+  margin-left: 0;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.typed-attachment-list {
+  max-width: 100%;
+}
+.typed-attachment-item {
+  width: min(320px, 100%);
+  height: 64px;
+  min-height: 64px;
+}
+.attachment-preview {
+  overflow: hidden;
+  padding: 0;
+}
+.typed-attachment-list img,
+.typed-attachment-list video {
+  width: 86px;
+  height: 64px;
+  flex: 0 0 86px;
+}
+.file-icon {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+}
+.file-meta {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.file-meta strong,
+.file-meta small {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attachment-download {
+  width: 38px;
+  flex: 0 0 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.message.user .typed-attachment-item {
+  background: #fff;
+}
+.recent-task > svg,
+.recent-task > .conversation-run-status {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+.recent-task > svg {
+  font-size: 15px;
+}
+.recent-task > .conversation-run-status svg {
+  font-size: 11px;
+}
+.recent-task > span:not(.conversation-run-status) {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.artifact-tree > button > svg,
+.artifact-tabs > button > svg {
+  flex: 0 0 auto;
+}
+.artifact-tree > button > i {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}

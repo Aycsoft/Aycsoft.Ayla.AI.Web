@@ -1,0 +1,158 @@
+/* 空白创作任务的灵感区域与小屏布局。
+ * 由 styles.css 按固定顺序加载；跨模块覆盖不可随意移动。
+ */
+/* Empty media inspiration sits below the greeting only. It is intentionally not a workspace
+   panel: it has no generated-asset claims, does not change composer height and never adds a
+   second scrolling region around the fixed bottom composer. */
+.empty-media-inspiration {
+  width: min(650px, 100%);
+  margin: 18px auto 0;
+  text-align: left;
+}
+.empty-media-inspiration > header {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+}
+.empty-media-inspiration > header > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.empty-media-inspiration > header > span > svg {
+  color: var(--primary);
+  font-size: 13px;
+}
+.empty-media-inspiration > header > small {
+  font-size: 9px;
+  color: var(--tertiary);
+}
+.empty-media-inspiration-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.empty-media-inspiration-grid > button {
+  min-width: 0;
+  min-height: 64px;
+  padding: 7px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 12px;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  color: var(--text);
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+.empty-media-inspiration-grid > button:hover {
+  background: var(--surface-subtle);
+  transform: translateY(-1px);
+}
+.empty-media-inspiration-grid > button > svg {
+  font-size: 11px;
+  color: var(--tertiary);
+}
+.media-prompt-preview {
+  width: 48px;
+  height: 48px;
+  padding: 6px;
+  border-radius: 9px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #fff;
+}
+.media-prompt-preview > svg {
+  font-size: 17px;
+}
+.media-prompt-preview > small {
+  align-self: flex-end;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+.media-prompt-preview[data-tone='blue'] {
+  background: linear-gradient(145deg, #7cbfff, #367edf);
+}
+.media-prompt-preview[data-tone='amber'] {
+  background: linear-gradient(145deg, #f4be72, #d97945);
+}
+.media-prompt-preview[data-tone='violet'] {
+  background: linear-gradient(145deg, #b7a2ff, #715fd2);
+}
+.media-prompt-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.media-prompt-copy > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+}
+.media-prompt-copy > small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 8px;
+}
+.chat-center.empty .empty-media-inspiration + .upload-entry {
+  margin-top: 9px;
+}
+@media (max-width: 700px) {
+  .empty-media-inspiration {
+    margin-top: 12px;
+  }
+  .empty-media-inspiration > header > small {
+    display: none;
+  }
+  .empty-media-inspiration-grid {
+    grid-template-columns: 1fr;
+  }
+  .empty-media-inspiration-grid > button {
+    min-height: 48px;
+    padding: 4px 6px;
+  }
+  .media-prompt-preview {
+    width: 40px;
+    height: 40px;
+  }
+  .media-prompt-preview > svg {
+    font-size: 14px;
+  }
+  .media-prompt-preview > small {
+    font-size: 7px;
+  }
+  .empty-media-inspiration-grid > button:nth-child(3) {
+    display: none;
+  }
+}
+@media (max-height: 720px) {
+  .chat-center.empty .empty-workspace {
+    padding-top: 72px;
+  }
+  .empty-media-inspiration-grid > button {
+    min-height: 54px;
+  }
+  .media-prompt-preview {
+    width: 42px;
+    height: 42px;
+  }
+  .empty-workspace > .brand-logo {
+    display: none;
+  }
+}

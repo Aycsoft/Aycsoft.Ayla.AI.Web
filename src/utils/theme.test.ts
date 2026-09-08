@@ -1,3 +1,4 @@
+/** 主题纯函数回归：验证持久值规范化与确定性切换，不依赖页面或存储。 */
 import { describe, expect, it } from 'vitest'
 import { nextTheme, normalizeTheme } from './theme'
 

@@ -4,15 +4,32 @@
 
 `Aycsoft.Ayla.AI.Web` is the browser client. It owns interaction, rendering, task state, resumable history, file workspaces and user-facing recovery. It does not own model credentials, enterprise authorization or durable binary storage.
 
-| Layer | Responsibility |
-| --- | --- |
-| Vue Web client | Modes, composer, attachments, SSE rendering, reasoning timeline, artifacts, previews, history and profile |
-| Trusted AI API | Authentication, model routing, safety, orchestration, usage accounting and durable records |
-| Media service | Image and video generation jobs, reference media and output retrieval |
-| File service | Uploads, generated files, signed access, previews and downloads |
-| Enterprise integration | SSO, permission-bound read-only tools and Portal route contracts |
+| Layer                  | Responsibility                                                                                            |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- |
+| Vue Web client         | Modes, composer, attachments, SSE rendering, reasoning timeline, artifacts, previews, history and profile |
+| Trusted AI API         | Authentication, model routing, safety, orchestration, usage accounting and durable records                |
+| Media service          | Image and video generation jobs, reference media and output retrieval                                     |
+| File service           | Uploads, generated files, signed access, previews and downloads                                           |
+| Enterprise integration | SSO, permission-bound read-only tools and Portal route contracts                                          |
 
-## Request lifecycle
+## Source navigation
+
+| Directory / entry                     | Responsibility                                                |
+| ------------------------------------- | ------------------------------------------------------------- |
+| `src/main.ts`, `App.vue`, `router.ts` | Bootstrap, root layout and route access                       |
+| `src/api`, `src/types`                | Transport, streaming and server contracts                     |
+| `src/stores/chat.ts`, `chatEvents.ts` | Conversation lifecycle and SSE event projection               |
+| `src/stores/auth.ts`, `settings.ts`   | Account session and shared settings                           |
+| `src/composables`                     | Reusable reactive page workflows                              |
+| `src/views`, `src/components`         | Route orchestration and focused UI components                 |
+| `src/utils`                           | Testable transforms, safety boundaries and browser adapters   |
+| `src/styles.css`, `src/styles`        | Ordered global stylesheet modules; cascade order is preserved |
+| `deploy/Host`                         | Static host entry and isolated API proxy middleware           |
+| `scripts/check-files.mjs`             | Full repository inventory and text/documentation checks       |
+
+See [coding standards](coding-standards.md) and the [complete file inventory](file-inventory.md) before changing cross-layer contracts.
+
+## Conversation flow
 
 1. The user selects a mode and adds text or attachments.
 2. The client creates or reuses the current conversation and posts a normalized request.

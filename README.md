@@ -95,7 +95,7 @@ flowchart LR
 
 ## 快速开始
 
-要求 Node.js 18+、pnpm 9+，以及运行在 `localhost:5088` 的兼容 AI API。
+要求 Node.js 22.13+、pnpm 9+，以及运行在 `localhost:5088` 的兼容 AI API。
 
 ```powershell
 git clone https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web.git
@@ -116,7 +116,7 @@ pnpm dev
 | `VITE_APP_BASE_PATH`       | Web 部署子路径，默认 `/ai-workbench/`            |
 | `VITE_SSO_LOGIN_URL`       | 企业 SSO 授权入口                                |
 | `VITE_PORTAL_ORIGIN`       | CrossCart Portal 地址                            |
-| `VITE_WORKSPACE_ORIGIN`    | 可选的正式 AI 域名，用于统一企业 SSO 回跳地址       |
+| `VITE_WORKSPACE_ORIGIN`    | 可选的正式 AI 域名，用于统一企业 SSO 回跳地址    |
 | `VITE_DEFAULT_AI_LOGO_URL` | 未配置服务端 Logo 时使用的透明 Logo              |
 | `VITE_HOST`                | 开发和预览监听地址，默认 `0.0.0.0`               |
 | `VITE_PORT`                | 本地开发端口，默认 `5176`                        |
@@ -135,12 +135,12 @@ pnpm dev
 ## 验证
 
 ```powershell
-pnpm typecheck
-pnpm test
-pnpm build
+pnpm check
 ```
 
 ## Docker 与 Nginx
+
+开发规范见 [代码规范](docs/coding-standards.md)，模块边界见 [架构说明](docs/architecture.md)，完整文件目录见 [文件清单](docs/file-inventory.md)。`pnpm check` 同时运行格式、lint、文件清单、类型、测试与生产构建。
 
 仓库包含两种发布宿主：
 

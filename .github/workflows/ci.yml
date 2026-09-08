@@ -1,3 +1,4 @@
+# PR 和主分支使用相同质量门禁，避免本地通过而开源贡献无法复现。
 name: CI
 
 on:
@@ -19,9 +20,13 @@ jobs:
           version: 9.15.3
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
+      - run: pnpm check
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet restore deploy/Host/CrossCart.AI.Web.Host.csproj
+      - run: dotnet format deploy/Host/CrossCart.AI.Web.Host.csproj --verify-no-changes --no-restore
+      - run: dotnet build deploy/Host/CrossCart.AI.Web.Host.csproj --no-restore

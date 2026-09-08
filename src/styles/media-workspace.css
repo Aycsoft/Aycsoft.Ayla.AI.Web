@@ -1,0 +1,459 @@
+/* 媒体创作面板、生成进度和内容视口高度约束。
+ * 由 styles.css 按固定顺序加载；跨模块覆盖不可随意移动。
+ */
+/* Media creation workspace: keep every control reachable and give real outputs their own row. */
+.composer:has(.media-workspace-panel) {
+  max-height: calc(100dvh - 76px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.composer:has(.media-workspace-panel) .composer-hint {
+  display: block;
+  position: static;
+  margin-top: 8px;
+}
+.composer:has(.media-workspace-panel):hover {
+  scrollbar-color: color-mix(in srgb, var(--muted) 38%, transparent) transparent;
+}
+.composer:has(.media-workspace-panel)::-webkit-scrollbar {
+  width: 4px;
+}
+.composer:has(.media-workspace-panel)::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: transparent;
+}
+.composer:has(.media-workspace-panel):hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 38%, transparent);
+}
+.composer .media-workspace-panel {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.composer .media-recommendations,
+.composer .media-cases {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface-subtle) 72%, transparent);
+}
+.composer .media-recommendations > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: visible;
+}
+.composer .media-recommendations button {
+  min-width: 0;
+  min-height: 58px;
+  flex: auto;
+}
+.composer .media-case-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(156px, 1fr));
+  gap: 9px;
+  max-height: 224px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1px;
+  scrollbar-width: thin;
+}
+.composer .media-case-grid > article {
+  min-width: 0;
+  flex: auto;
+}
+.composer .media-case-grid > article > button {
+  height: 100%;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  gap: 7px;
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.composer .media-case-grid > article > button:hover {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.07);
+}
+.composer .media-case-grid > article > button > .resilient-media-loading,
+.composer .media-case-grid > article > button > img,
+.composer .media-case-grid > article > button > video {
+  width: 100%;
+  height: 90px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface-subtle);
+}
+.composer .media-case-grid > article > button strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+.composer .media-case-grid > article > button small {
+  margin-top: 2px;
+  font-size: 8px;
+}
+.composer .media-case-empty {
+  min-height: 76px;
+  padding: 12px;
+  border-style: dashed;
+  background: var(--surface);
+}
+.resilient-media-loading {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 10px;
+  background: var(--surface-subtle);
+  color: var(--muted);
+  font-size: 10px;
+}
+.resilient-media-loading svg {
+  font-size: 18px;
+  animation: spin 1s linear infinite;
+}
+.artifact-output-card > .resilient-media-loading,
+.artifact-output-card > img,
+.artifact-output-card > video {
+  width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+  background: var(--surface-subtle);
+}
+.generation-progress-card {
+  position: relative;
+  width: min(100%, 620px);
+  margin: 12px 0;
+  padding: 14px 15px 18px;
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+  border-radius: 13px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 7%, var(--surface)),
+    var(--surface)
+  );
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  overflow: hidden;
+}
+.generation-orbit {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.generation-orbit:before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+  border-top-color: var(--primary);
+  border-radius: 15px;
+  animation: spin 1.4s linear infinite;
+}
+.generation-orbit svg {
+  font-size: 19px;
+}
+.generation-progress-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.generation-progress-copy strong {
+  font-size: 11px;
+}
+.generation-progress-copy span {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.generation-progress-copy small {
+  margin-top: 3px;
+  font-size: 9px;
+  color: var(--tertiary);
+}
+.generation-progress-card > b {
+  font-size: 11px;
+  color: var(--primary);
+}
+.generation-progress-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.generation-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(90deg, var(--primary), #75aaff);
+  transition: width 0.35s ease;
+  position: relative;
+  overflow: hidden;
+}
+.generation-progress-track i:after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  transform: translateX(-100%);
+  animation: generation-shimmer 1.35s infinite;
+}
+@keyframes generation-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (max-width: 760px) {
+  .composer:has(.media-workspace-panel) {
+    max-height: min(420px, 52dvh);
+  }
+  .composer .media-recommendations > div {
+    grid-template-columns: 1fr;
+  }
+  .composer .media-cases {
+    display: block;
+  }
+  .composer .media-case-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 150px;
+  }
+  .generation-progress-card {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+  }
+  .generation-progress-copy small {
+    display: none;
+  }
+}
+
+/* 媒体创作面板属于底部悬浮输入区，不能吞掉聊天内容视口。推荐与案例在面板内部滚动，
+   消息区为实际输入框高度预留空间，切换图片/视频模式后仍可看到刚生成的内容。 */
+.composer:has(.media-workspace-panel) {
+  max-height: min(470px, 52dvh);
+}
+.composer .media-workspace-panel {
+  max-height: min(250px, 30dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.chat-center:has(.media-workspace-panel) .message-list {
+  padding-bottom: min(520px, calc(52dvh + 52px));
+}
+@media (max-height: 720px) {
+  .composer .media-workspace-panel {
+    max-height: 180px;
+  }
+  .composer .media-recommendations button {
+    min-height: 50px;
+  }
+  .composer .media-case-grid {
+    max-height: 132px;
+  }
+  .composer .media-case-grid > article > button > .resilient-media-loading,
+  .composer .media-case-grid > article > button > img,
+  .composer .media-case-grid > article > button > video {
+    height: 70px;
+  }
+}
+.account-avatar {
+  position: relative;
+}
+.account-avatar img {
+  position: absolute;
+  inset: 0;
+}
+.message-elapsed {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: -5px 0 9px;
+  color: var(--mm-weak);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.message-elapsed svg {
+  font-size: 11px;
+  color: var(--primary);
+}
+.usage-summary-panel {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.usage-summary-panel > summary {
+  height: 42px;
+  padding: 0 11px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.usage-summary-panel > summary::-webkit-details-marker {
+  display: none;
+}
+.usage-summary-panel > summary > span {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.usage-summary-panel > summary strong {
+  font-size: 11px;
+}
+.usage-summary-panel > summary small {
+  color: var(--muted);
+  font-size: 8px;
+}
+.usage-summary-panel[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.usage-summary-content {
+  max-height: 300px;
+  padding: 0 10px 10px;
+  overflow: auto;
+}
+.usage-total-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.usage-total-grid > span {
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  display: flex;
+  flex-direction: column;
+}
+.usage-total-grid small {
+  color: var(--muted);
+  font-size: 8px;
+}
+.usage-total-grid strong {
+  margin-top: 2px;
+  font-size: 11px;
+}
+.usage-summary-content > section {
+  margin-top: 10px;
+}
+.usage-summary-content > section > header {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 600;
+}
+.usage-row {
+  min-height: 28px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 9px;
+}
+.usage-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.usage-row span,
+.usage-row small {
+  color: var(--muted);
+}
+.usage-summary-content > p {
+  margin: 9px 0 0;
+  color: var(--tertiary);
+  font-size: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.usage-summary-state {
+  min-height: 72px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.usage-summary-state > svg[data-icon='lucide:loader-circle'] {
+  animation: spin 1s linear infinite;
+}
+.usage-summary-state.error {
+  color: var(--danger);
+}
+.usage-summary-state button {
+  height: 27px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.usage-summary-dialog {
+  width: min(580px, calc(100vw - 28px));
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+}
+.usage-summary-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.usage-summary-dialog > header > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.usage-summary-dialog > header > button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+.usage-summary-dialog > footer {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+@media (max-width: 560px) {
+  .usage-total-grid {
+    grid-template-columns: 1fr;
+  }
+  .usage-row {
+    grid-template-columns: 1fr auto;
+  }
+  .usage-row small {
+    grid-column: 1/-1;
+  }
+}

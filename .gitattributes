@@ -1,0 +1,6 @@
+# 跨平台文本使用 LF；二进制资源不参与文本换行转换。
+* text=auto eol=lf
+*.png binary
+*.mp4 binary
+*.jpg binary
+*.webp binary

@@ -1,3 +1,4 @@
+/** 附件上传传输契约：验证 Cookie、变更标识及浏览器生成的 multipart 请求；fetch 使用替身。 */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { aiApi } from './ai'
 
@@ -5,13 +6,18 @@ describe('external attachment upload', () => {
   afterEach(() => vi.unstubAllGlobals())
 
   it('sends the external session cookie and browser mutation header with multipart content', async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-      new Response(JSON.stringify({
-        FileId: 'extfile_0123456789abcdef0123456789abcdef0123456789abcdef',
-        FileName: 'acceptance.txt',
-        ContentType: 'text/plain',
-        Size: 10
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({
+            FileId: 'extfile_0123456789abcdef0123456789abcdef0123456789abcdef',
+            FileName: 'acceptance.txt',
+            ContentType: 'text/plain',
+            Size: 10,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+    )
     vi.stubGlobal('fetch', fetchMock)
 
     await aiApi.upload(new File(['acceptance'], 'acceptance.txt', { type: 'text/plain' }))

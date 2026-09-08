@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/** 个人 Markdown 笔记列表与草稿编辑器；预览统一经过安全 Markdown 渲染。 */
 import { computed, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
@@ -6,34 +7,458 @@ import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import 'element-plus/es/components/message/style/css.mjs'
 import 'element-plus/es/components/message-box/style/css.mjs'
 import { aiApi } from '@/api/ai'
+import { useWorkspaceCollection } from '@/composables/useWorkspaceCollection'
 import { renderMarkdownSafe } from '@/utils/safeMarkdown'
 import PersonalWorkspaceLayout from '@/components/PersonalWorkspaceLayout.vue'
 import type { MarkdownNote } from '@/types/ai'
 
-const items = ref<MarkdownNote[]>([]); const loading = ref(true); const saving = ref(false); const error = ref(''); const keyword = ref('')
-const editingId = ref<string>(); const title = ref(''); const content = ref(''); const tagsText = ref(''); const preview = ref(false)
-const filtered = computed(() => { const value = keyword.value.trim().toLowerCase(); return value ? items.value.filter(item => `${item.Title}\n${item.ContentMarkdown}\n${item.Tags.join(' ')}`.toLowerCase().includes(value)) : items.value })
+const { items, loading, error, load, refresh } = useWorkspaceCollection<MarkdownNote>(() =>
+  aiApi.notes(),
+)
+const saving = ref(false)
+const keyword = ref('')
+// 编辑表单是独立草稿，列表记录只有在接口保存成功并重载后更新。
+const editingId = ref<string>()
+const title = ref('')
+const content = ref('')
+const tagsText = ref('')
+const preview = ref(false)
+const filtered = computed(() => {
+  const value = keyword.value.trim().toLowerCase()
+  return value
+    ? items.value.filter((item) =>
+        `${item.Title}\n${item.ContentMarkdown}\n${item.Tags.join(' ')}`
+          .toLowerCase()
+          .includes(value),
+      )
+    : items.value
+})
 const rendered = computed(() => renderMarkdownSafe(content.value || '*开始书写 Markdown 笔记…*'))
-const load = async () => { loading.value = true; error.value = ''; try { items.value = await aiApi.notes() } catch (reason) { error.value = (reason as Error).message } finally { loading.value = false } }
-const reset = () => { editingId.value = undefined; title.value = ''; content.value = ''; tagsText.value = ''; preview.value = false }
-const edit = (item: MarkdownNote) => { editingId.value = item.Id; title.value = item.Title; content.value = item.ContentMarkdown; tagsText.value = item.Tags.join(', '); preview.value = false }
-const payload = () => ({ Title: title.value.trim(), ContentMarkdown: content.value, Tags: tagsText.value.split(/[,，]/).map(value => value.trim()).filter(Boolean) })
-const save = async () => { if (!title.value.trim() || saving.value) return; saving.value = true; try { if (editingId.value) await aiApi.updateNote(editingId.value, payload()); else await aiApi.createNote(payload()); ElMessage.success(editingId.value ? '笔记已更新' : '笔记已创建'); reset(); await load() } catch (reason) { ElMessage.error((reason as Error).message || '保存失败') } finally { saving.value = false } }
-const remove = async (item: MarkdownNote) => { try { await ElMessageBox.confirm(`删除笔记“${item.Title}”？`, '删除笔记', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }); await aiApi.deleteNote(item.Id); items.value = items.value.filter(candidate => candidate.Id !== item.Id); if (editingId.value === item.Id) reset() } catch (reason) { if (reason !== 'cancel' && reason !== 'close') ElMessage.error((reason as Error).message || '删除失败') } }
+/** 切回新建模式并清空本地草稿，不影响服务端已保存笔记。 */
+const reset = () => {
+  editingId.value = undefined
+  title.value = ''
+  content.value = ''
+  tagsText.value = ''
+  preview.value = false
+}
+/** 从列表记录复制字段到草稿，避免双向绑定提前修改列表。 */
+const edit = (item: MarkdownNote) => {
+  editingId.value = item.Id
+  title.value = item.Title
+  content.value = item.ContentMarkdown
+  tagsText.value = item.Tags.join(', ')
+  preview.value = false
+}
+/** 标题与标签规范化；正文保留用户原始 Markdown 空白和缩进。 */
+const payload = () => ({
+  Title: title.value.trim(),
+  ContentMarkdown: content.value,
+  Tags: tagsText.value
+    .split(/[,，]/)
+    .map((value) => value.trim())
+    .filter(Boolean),
+})
+/** 新建/更新共用入口；提交中禁止重复执行，成功后刷新真实列表。 */
+const save = async () => {
+  if (!title.value.trim() || saving.value) return
+  saving.value = true
+  try {
+    if (editingId.value) await aiApi.updateNote(editingId.value, payload())
+    else await aiApi.createNote(payload())
+    ElMessage.success(editingId.value ? '笔记已更新' : '笔记已创建')
+    reset()
+    await refresh()
+  } catch (reason) {
+    ElMessage.error((reason as Error).message || '保存失败')
+  } finally {
+    saving.value = false
+  }
+}
+/** 删除成功后同步列表和编辑器，取消确认不弹错误。 */
+const remove = async (item: MarkdownNote) => {
+  try {
+    await ElMessageBox.confirm(`删除笔记“${item.Title}”？`, '删除笔记', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await aiApi.deleteNote(item.Id)
+    items.value = items.value.filter((candidate) => candidate.Id !== item.Id)
+    if (editingId.value === item.Id) reset()
+    await refresh()
+  } catch (reason) {
+    if (reason !== 'cancel' && reason !== 'close')
+      ElMessage.error((reason as Error).message || '删除失败')
+  }
+}
 onMounted(load)
 </script>
 
 <template>
-  <PersonalWorkspaceLayout title="Markdown 笔记" description="记录、搜索和预览当前账号的 Markdown 内容。" icon="lucide:notebook-pen">
-    <template #actions><button class="tool-button" @click="load"><Icon icon="lucide:refresh-cw" />刷新</button><button class="tool-button primary" @click="reset"><Icon icon="lucide:file-plus-2" />新建笔记</button></template>
+  <PersonalWorkspaceLayout
+    title="Markdown 笔记"
+    description="记录、搜索和预览当前账号的 Markdown 内容。"
+    icon="lucide:notebook-pen"
+  >
+    <template #actions
+      ><button class="tool-button" @click="load"><Icon icon="lucide:refresh-cw" />刷新</button
+      ><button class="tool-button primary" @click="reset">
+        <Icon icon="lucide:file-plus-2" />新建笔记
+      </button></template
+    >
     <div class="notes-workspace">
-      <section class="notes-list workspace-panel"><header><label class="note-search"><Icon icon="lucide:search" /><input v-model="keyword" placeholder="搜索标题、内容或标签" /></label><small>{{ filtered.length }} / {{ items.length }}</small></header><div v-if="loading" class="workspace-empty compact"><Icon icon="lucide:loader-circle" class="spin" /><h2>正在读取笔记</h2></div><div v-else-if="error" class="workspace-empty compact error"><Icon icon="lucide:circle-alert" /><h2>读取失败</h2><p>{{ error }}</p></div><div v-else-if="!filtered.length" class="workspace-empty compact"><Icon icon="lucide:notebook-pen" /><h2>{{ keyword ? '没有匹配笔记' : '还没有笔记' }}</h2><p>{{ keyword ? '尝试更换搜索关键词。' : '创建一条 Markdown 笔记开始记录。' }}</p></div><div v-else class="note-items"><article v-for="item in filtered" :key="item.Id" :class="{ active: editingId === item.Id }" @click="edit(item)"><span><Icon icon="lucide:file-text" /></span><div><strong>{{ item.Title }}</strong><p>{{ item.ContentMarkdown.slice(0, 90) || '空白笔记' }}</p><small v-if="item.Tags.length">{{ item.Tags.join(' · ') }}</small><small v-else>更新于 {{ new Date(item.UpdatedTime).toLocaleDateString() }}</small></div><button class="row-action danger" title="删除" @click.stop="remove(item)"><Icon icon="lucide:trash-2" /></button></article></div></section>
-      <section class="note-editor workspace-panel"><header><input v-model="title" maxlength="200" placeholder="无标题笔记" /><div><span>{{ content.length.toLocaleString() }} 字符</span><button class="view-toggle" :class="{ active: !preview }" @click="preview = false"><Icon icon="lucide:pencil-line" />编辑</button><button class="view-toggle" :class="{ active: preview }" @click="preview = true"><Icon icon="lucide:eye" />预览</button></div></header><div class="tag-row"><Icon icon="lucide:tags" /><input v-model="tagsText" placeholder="添加标签，使用逗号分隔" /></div><div v-if="preview" class="markdown-preview gfm-content" v-html="rendered" /><textarea v-else v-model="content" maxlength="100000" aria-label="Markdown 内容" placeholder="# 开始记录&#10;&#10;支持标题、列表、表格、链接、代码块和引用。" /><footer><span><Icon icon="lucide:shield-check" />预览内容经过安全过滤</span><div><button v-if="editingId" class="tool-button" @click="reset">取消编辑</button><button class="tool-button primary" :disabled="saving || !title.trim()" @click="save"><Icon :icon="saving ? 'lucide:loader-circle' : 'lucide:save'" />{{ saving ? '正在保存' : '保存笔记' }}</button></div></footer></section>
+      <section class="notes-list workspace-panel">
+        <header>
+          <label class="note-search"
+            ><Icon icon="lucide:search" /><input
+              v-model="keyword"
+              placeholder="搜索标题、内容或标签" /></label
+          ><small>{{ filtered.length }} / {{ items.length }}</small>
+        </header>
+        <div v-if="loading" class="workspace-empty compact">
+          <Icon icon="lucide:loader-circle" class="spin" />
+          <h2>正在读取笔记</h2>
+        </div>
+        <div v-else-if="error" class="workspace-empty compact error">
+          <Icon icon="lucide:circle-alert" />
+          <h2>读取失败</h2>
+          <p>{{ error }}</p>
+        </div>
+        <div v-else-if="!filtered.length" class="workspace-empty compact">
+          <Icon icon="lucide:notebook-pen" />
+          <h2>{{ keyword ? '没有匹配笔记' : '还没有笔记' }}</h2>
+          <p>{{ keyword ? '尝试更换搜索关键词。' : '创建一条 Markdown 笔记开始记录。' }}</p>
+        </div>
+        <div v-else class="note-items">
+          <article
+            v-for="item in filtered"
+            :key="item.Id"
+            :class="{ active: editingId === item.Id }"
+            @click="edit(item)"
+          >
+            <span><Icon icon="lucide:file-text" /></span>
+            <div>
+              <strong>{{ item.Title }}</strong>
+              <p>{{ item.ContentMarkdown.slice(0, 90) || '空白笔记' }}</p>
+              <small v-if="item.Tags.length">{{ item.Tags.join(' · ') }}</small
+              ><small v-else>更新于 {{ new Date(item.UpdatedTime).toLocaleDateString() }}</small>
+            </div>
+            <button class="row-action danger" title="删除" @click.stop="remove(item)">
+              <Icon icon="lucide:trash-2" />
+            </button>
+          </article>
+        </div>
+      </section>
+      <section class="note-editor workspace-panel">
+        <header>
+          <input v-model="title" maxlength="200" placeholder="无标题笔记" />
+          <div>
+            <span>{{ content.length.toLocaleString() }} 字符</span
+            ><button class="view-toggle" :class="{ active: !preview }" @click="preview = false">
+              <Icon icon="lucide:pencil-line" />编辑</button
+            ><button class="view-toggle" :class="{ active: preview }" @click="preview = true">
+              <Icon icon="lucide:eye" />预览
+            </button>
+          </div>
+        </header>
+        <div class="tag-row">
+          <Icon icon="lucide:tags" /><input
+            v-model="tagsText"
+            placeholder="添加标签，使用逗号分隔"
+          />
+        </div>
+        <!-- eslint-disable-next-line vue/no-v-html -- rendered 仅来自 renderMarkdownSafe，禁止直接插入草稿 HTML。 -->
+        <div v-if="preview" class="markdown-preview gfm-content" v-html="rendered" />
+        <textarea
+          v-else
+          v-model="content"
+          maxlength="100000"
+          aria-label="Markdown 内容"
+          placeholder="# 开始记录&#10;&#10;支持标题、列表、表格、链接、代码块和引用。"
+        />
+        <footer>
+          <span><Icon icon="lucide:shield-check" />预览内容经过安全过滤</span>
+          <div>
+            <button v-if="editingId" class="tool-button" @click="reset">取消编辑</button
+            ><button class="tool-button primary" :disabled="saving || !title.trim()" @click="save">
+              <Icon :icon="saving ? 'lucide:loader-circle' : 'lucide:save'" />{{
+                saving ? '正在保存' : '保存笔记'
+              }}
+            </button>
+          </div>
+        </footer>
+      </section>
     </div>
   </PersonalWorkspaceLayout>
 </template>
 
 <style scoped>
-.notes-workspace{min-height:580px;display:grid;grid-template-columns:minmax(275px,330px) minmax(0,1fr);gap:12px}.notes-list,.note-editor{min-height:0;overflow:hidden;display:flex;flex-direction:column}.notes-list>header{height:51px;flex:0 0 51px;padding:0 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}.notes-list>header>small{color:var(--muted);font-size:9px}.note-search{min-width:0;flex:1;height:31px;padding:0 8px;border:1px solid var(--border);border-radius:8px;color:var(--muted);display:flex;align-items:center;gap:6px}.note-search input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:var(--text);font-size:10px}.note-items{min-height:0;flex:1;overflow:auto;padding:5px;scrollbar-width:thin}.note-items article{min-height:72px;padding:8px;border-radius:9px;display:grid;grid-template-columns:29px minmax(0,1fr) auto;align-items:flex-start;gap:8px;cursor:pointer}.note-items article:hover,.note-items article.active{background:var(--surface-subtle)}.note-items article.active{box-shadow:inset 2px 0 var(--primary)}.note-items article>span{width:28px;height:28px;border-radius:7px;background:var(--surface-subtle);color:var(--muted);display:grid;place-items:center}.note-items article.active>span{background:var(--primary-soft);color:var(--primary)}.note-items article>div{min-width:0;display:flex;flex-direction:column}.note-items strong,.note-items p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.note-items strong{font-size:11px}.note-items p{margin:2px 0;color:var(--muted);font-size:9px}.note-items small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--primary);font-size:8px}.row-action{width:26px;height:26px;border:0;border-radius:7px;background:transparent;color:var(--muted);display:grid;place-items:center}.row-action.danger:hover{background:var(--surface);color:var(--danger)}.note-editor>header{height:51px;flex:0 0 51px;padding:0 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}.note-editor>header>input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:var(--text);font-size:13px;font-weight:600}.note-editor>header>div{display:flex;align-items:center;gap:2px}.note-editor>header>div>span{margin-right:7px;color:var(--muted);font-size:9px}.view-toggle{height:27px;padding:0 7px;border:0;border-radius:6px;background:transparent;color:var(--muted);display:flex;align-items:center;gap:4px;font-size:9px}.view-toggle.active{background:var(--surface-subtle);color:var(--text)}.tag-row{height:39px;flex:0 0 39px;padding:0 13px;border-bottom:1px solid var(--border);color:var(--muted);display:flex;align-items:center;gap:7px}.tag-row input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:var(--text);font-size:10px}.note-editor>textarea,.markdown-preview{min-height:0;flex:1;width:100%;box-sizing:border-box;border:0;background:var(--surface);color:var(--text);padding:16px;outline:0;overflow:auto}.note-editor>textarea{resize:none;font:11px/1.75 ui-monospace,SFMono-Regular,Consolas,monospace}.markdown-preview{font-size:12px}.note-editor>footer{min-height:51px;padding:8px 12px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}.note-editor>footer>span{color:var(--muted);display:flex;align-items:center;gap:5px;font-size:9px}.note-editor>footer>div{display:flex;gap:7px}.workspace-empty.compact{min-height:220px}.workspace-empty.error>svg{color:var(--danger)}.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-@media(max-width:760px){.notes-workspace{grid-template-columns:1fr;min-height:auto}.notes-list{max-height:290px}.note-editor{min-height:500px}.note-editor>header>div>span{display:none}.view-toggle{font-size:0}.view-toggle svg{font-size:13px}}
+.notes-workspace {
+  min-height: 580px;
+  display: grid;
+  grid-template-columns: minmax(275px, 330px) minmax(0, 1fr);
+  gap: 12px;
+}
+.notes-list,
+.note-editor {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.notes-list > header {
+  height: 51px;
+  flex: 0 0 51px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.notes-list > header > small {
+  color: var(--muted);
+  font-size: 9px;
+}
+.note-search {
+  min-width: 0;
+  flex: 1;
+  height: 31px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.note-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 10px;
+}
+.note-items {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 5px;
+  scrollbar-width: thin;
+}
+.note-items article {
+  min-height: 72px;
+  padding: 8px;
+  border-radius: 9px;
+  display: grid;
+  grid-template-columns: 29px minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+.note-items article:hover,
+.note-items article.active {
+  background: var(--surface-subtle);
+}
+.note-items article.active {
+  box-shadow: inset 2px 0 var(--primary);
+}
+.note-items article > span {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--surface-subtle);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+.note-items article.active > span {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.note-items article > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.note-items strong,
+.note-items p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-items strong {
+  font-size: 11px;
+}
+.note-items p {
+  margin: 2px 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+.note-items small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--primary);
+  font-size: 8px;
+}
+.row-action {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+.row-action.danger:hover {
+  background: var(--surface);
+  color: var(--danger);
+}
+.note-editor > header {
+  height: 51px;
+  flex: 0 0 51px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.note-editor > header > input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.note-editor > header > div {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.note-editor > header > div > span {
+  margin-right: 7px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.view-toggle {
+  height: 27px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+}
+.view-toggle.active {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+.tag-row {
+  height: 39px;
+  flex: 0 0 39px;
+  padding: 0 13px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.tag-row input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 10px;
+}
+.note-editor > textarea,
+.markdown-preview {
+  min-height: 0;
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+  padding: 16px;
+  outline: 0;
+  overflow: auto;
+}
+.note-editor > textarea {
+  resize: none;
+  font:
+    11px/1.75 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.markdown-preview {
+  font-size: 12px;
+}
+.note-editor > footer {
+  min-height: 51px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.note-editor > footer > span {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+}
+.note-editor > footer > div {
+  display: flex;
+  gap: 7px;
+}
+.workspace-empty.compact {
+  min-height: 220px;
+}
+.workspace-empty.error > svg {
+  color: var(--danger);
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 760px) {
+  .notes-workspace {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .notes-list {
+    max-height: 290px;
+  }
+  .note-editor {
+    min-height: 500px;
+  }
+  .note-editor > header > div > span {
+    display: none;
+  }
+  .view-toggle {
+    font-size: 0;
+  }
+  .view-toggle svg {
+    font-size: 13px;
+  }
+}
 </style>

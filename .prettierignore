@@ -1,0 +1,14 @@
+# 依赖、构建产物和本地调试数据不是源码。
+node_modules/
+dist/
+coverage/
+.git/
+.codex-artifacts/
+.playwright-cli/
+ui-audit/
+output/
+deploy/Host/bin/
+deploy/Host/obj/
+# 锁文件由 pnpm 生成；法律正文保持原样。
+pnpm-lock.yaml
+LICENSE

@@ -1,3 +1,4 @@
+/** 模型目录回归：验证公开搜索、服务端声明默认模型和免费能力筛选。 */
 import { describe, expect, it } from 'vitest'
 import type { WorkspaceModel } from '@/types/ai'
 import { matchesModelSearch, preferredModelForCapability } from './modelCatalog'
@@ -18,7 +19,7 @@ const model: WorkspaceModel = {
   OutputModalities: ['text'],
   Available: true,
   IsDefault: false,
-  Health: 'synced'
+  Health: 'synced',
 }
 
 describe('model catalog presentation', () => {
@@ -33,15 +34,32 @@ describe('model catalog presentation', () => {
   })
 
   it('uses only the server-declared API default for chat', () => {
-    const local = { ...model, InternalAlias: 'aycsoft-pro-2.1', SelectionAlias: 'aycsoft-pro-2.1', IsFree: false }
-    const automatic = { ...model, InternalAlias: 'aycsoft-free', SelectionAlias: 'aycsoft-free', IsDefault: true }
+    const local = {
+      ...model,
+      InternalAlias: 'aycsoft-pro-2.1',
+      SelectionAlias: 'aycsoft-pro-2.1',
+      IsFree: false,
+    }
+    const automatic = {
+      ...model,
+      InternalAlias: 'aycsoft-free',
+      SelectionAlias: 'aycsoft-free',
+      IsDefault: true,
+    }
 
-    expect(preferredModelForCapability([local, automatic], 'chat')?.SelectionAlias).toBe('aycsoft-free')
+    expect(preferredModelForCapability([local, automatic], 'chat')?.SelectionAlias).toBe(
+      'aycsoft-free',
+    )
     expect(preferredModelForCapability([local], 'chat')).toBeUndefined()
   })
 
   it('never exposes a paid media model as a selectable free fallback', () => {
-    const paidImage = { ...model, IsFree: false, SupportsStreaming: false, SupportsImageGeneration: true }
+    const paidImage = {
+      ...model,
+      IsFree: false,
+      SupportsStreaming: false,
+      SupportsImageGeneration: true,
+    }
 
     expect(preferredModelForCapability([paidImage], 'image')).toBeUndefined()
   })

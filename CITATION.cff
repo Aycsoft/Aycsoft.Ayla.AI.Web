@@ -1,14 +1,14 @@
 cff-version: 1.2.0
-message: "If you use Ayla AI Workspace, please cite this software."
-title: "Ayla AI Workspace"
+message: 'If you use Ayla AI Workspace, please cite this software.'
+title: 'Ayla AI Workspace'
 type: software
 authors:
-  - family-names: "Yang"
-    given-names: "Peng"
-    alias: "杨鹏 / Perry Yang / YangPeng"
-    email: "aycsoft@qq.com"
-repository-code: "https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web"
-url: "https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web"
+  - family-names: 'Yang'
+    given-names: 'Peng'
+    alias: '杨鹏 / Perry Yang / YangPeng'
+    email: 'aycsoft@qq.com'
+repository-code: 'https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web'
+url: 'https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web'
 license: MIT
 version: 1.0.0
 date-released: 2026-08-31

@@ -1,0 +1,141 @@
+/* 空白任务案例图库的最终布局覆盖，保持在灵感规则之后。
+ * 由 styles.css 按固定顺序加载；跨模块覆盖不可随意移动。
+ */
+/* Bundled, immutable media case gallery shown only on a blank creation task. */
+.empty-media-inspiration {
+  width: min(760px, 100%);
+  margin-top: 20px;
+}
+.empty-media-inspiration > header > span {
+  font-size: 11px;
+  font-weight: 650;
+}
+.empty-media-inspiration > header > small {
+  font-size: 10px;
+}
+.empty-media-inspiration-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.empty-media-inspiration-grid > button {
+  min-height: 0;
+  padding: 0 0 5px;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  transition: transform 0.15s ease;
+}
+.empty-media-inspiration-grid > button:hover {
+  background: transparent;
+  transform: translateY(-2px);
+}
+.empty-media-inspiration-grid > button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+.media-case-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--surface-subtle);
+}
+.media-case-preview > img,
+.media-case-preview > video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+.empty-media-inspiration-grid > button:hover .media-case-preview > img,
+.empty-media-inspiration-grid > button:hover .media-case-preview > video {
+  transform: scale(1.025);
+}
+.media-case-badge {
+  position: absolute;
+  left: 7px;
+  bottom: 7px;
+  max-width: calc(100% - 14px);
+  padding: 3px 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(15 23 42 / 70%);
+  backdrop-filter: blur(5px);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.media-case-play {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(15 23 42 / 65%);
+  color: #fff;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.15s ease;
+}
+.media-case-play > svg {
+  width: 12px;
+  height: 12px;
+  margin-left: 1px;
+}
+.empty-media-inspiration-grid > button:hover .media-case-play {
+  opacity: 0;
+}
+.empty-media-inspiration .media-prompt-copy {
+  width: 100%;
+  gap: 3px;
+  padding: 0 2px;
+}
+.empty-media-inspiration .media-prompt-copy > strong {
+  font-size: 11px;
+  font-weight: 650;
+}
+.empty-media-inspiration .media-prompt-copy > small {
+  font-size: 9px;
+}
+@media (max-width: 700px) {
+  .empty-media-inspiration-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .empty-media-inspiration-grid > button:nth-child(3) {
+    display: flex;
+  }
+}
+@media (max-height: 720px) {
+  .empty-media-inspiration {
+    margin-top: 10px;
+  }
+}
+
+.auth-password-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: -2px 0 2px;
+  color: var(--tertiary);
+  font-size: 10px;
+}
+.auth-password-status > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.auth-password-status > span.valid {
+  color: var(--success);
+}
+.auth-password-status > span.invalid {
+  color: var(--danger);
+}

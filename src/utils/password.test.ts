@@ -1,3 +1,4 @@
+/** 密码提示策略回归：验证字符分类与当前长度要求，不代替服务端认证测试。 */
 import { describe, expect, it } from 'vitest'
 import { isStrongExternalPassword, passwordCategoryCount } from './password'
 

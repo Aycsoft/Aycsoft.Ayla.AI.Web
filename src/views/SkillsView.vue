@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/** 当前账号的 Skill 规范编辑、文件导入和启停；导入只填入草稿，不自动保存。 */
 import { onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
@@ -8,32 +9,443 @@ import 'element-plus/es/components/message/style/css.mjs'
 import 'element-plus/es/components/message-box/style/css.mjs'
 import 'element-plus/es/components/switch/style/css.mjs'
 import { aiApi } from '@/api/ai'
+import { useWorkspaceCollection } from '@/composables/useWorkspaceCollection'
 import PersonalWorkspaceLayout from '@/components/PersonalWorkspaceLayout.vue'
 import type { UserSkill } from '@/types/ai'
 
-const items = ref<UserSkill[]>([]); const loading = ref(true); const saving = ref(false); const error = ref('')
-const editingId = ref<string>(); const name = ref(''); const description = ref(''); const instructions = ref(''); const enabled = ref(true); const fileInput = ref<HTMLInputElement>()
-const load = async () => { loading.value = true; error.value = ''; try { items.value = await aiApi.skills() } catch (reason) { error.value = (reason as Error).message } finally { loading.value = false } }
-const reset = () => { editingId.value = undefined; name.value = ''; description.value = ''; instructions.value = ''; enabled.value = true }
-const edit = (item: UserSkill) => { editingId.value = item.Id; name.value = item.Name; description.value = item.Description || ''; instructions.value = item.Instructions; enabled.value = item.IsEnabled }
-const save = async () => { if (!name.value.trim() || !instructions.value.trim() || saving.value) return; saving.value = true; try { const payload = { Name: name.value.trim(), Description: description.value.trim() || undefined, Instructions: instructions.value.trim(), IsEnabled: enabled.value }; if (editingId.value) await aiApi.updateSkill(editingId.value, payload); else await aiApi.createSkill(payload); ElMessage.success(editingId.value ? 'Skill 已更新' : 'Skill 已创建并保存'); reset(); await load() } catch (reason) { ElMessage.error((reason as Error).message || '保存失败') } finally { saving.value = false } }
-const importFile = async (event: Event) => { const input = event.target as HTMLInputElement; const file = input.files?.[0]; input.value = ''; if (!file) return; if (file.size > 128 * 1024) { ElMessage.warning('Skill 规范文件不能超过 128KB'); return } instructions.value = await file.text(); if (!name.value) name.value = file.name.replace(/\.(md|txt)$/i, ''); ElMessage.success('已读取规范文件，确认后保存即可生效') }
-const toggle = async (item: UserSkill, value: string | number | boolean) => { try { await aiApi.updateSkill(item.Id, { Name: item.Name, Description: item.Description, Instructions: item.Instructions, IsEnabled: Boolean(value) }); item.IsEnabled = Boolean(value) } catch (reason) { ElMessage.error((reason as Error).message || '状态更新失败'); await load() } }
-const remove = async (item: UserSkill) => { try { await ElMessageBox.confirm(`删除 Skill“${item.Name}”？`, '删除 Skill', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }); await aiApi.deleteSkill(item.Id); items.value = items.value.filter(candidate => candidate.Id !== item.Id); if (editingId.value === item.Id) reset() } catch (reason) { if (reason !== 'cancel' && reason !== 'close') ElMessage.error((reason as Error).message || '删除失败') } }
+const { items, loading, error, load, refresh } = useWorkspaceCollection<UserSkill>(() =>
+  aiApi.skills(),
+)
+const saving = ref(false)
+// 草稿与列表分离：保存按钮才提交内容，列表开关仅更新已有记录的启用状态。
+const editingId = ref<string>()
+const name = ref('')
+const description = ref('')
+const instructions = ref('')
+const enabled = ref(true)
+const fileInput = ref<HTMLInputElement>()
+/** 清空草稿并恢复新建 Skill 的默认启用状态。 */
+const reset = () => {
+  editingId.value = undefined
+  name.value = ''
+  description.value = ''
+  instructions.value = ''
+  enabled.value = true
+}
+/** 将已保存规范复制进表单，不就地编辑列表对象。 */
+const edit = (item: UserSkill) => {
+  editingId.value = item.Id
+  name.value = item.Name
+  description.value = item.Description || ''
+  instructions.value = item.Instructions
+  enabled.value = item.IsEnabled
+}
+/** 校验必要字段，按是否存在 Id 选择创建或更新，并合并重复提交。 */
+const save = async () => {
+  if (!name.value.trim() || !instructions.value.trim() || saving.value) return
+  saving.value = true
+  try {
+    const payload = {
+      Name: name.value.trim(),
+      Description: description.value.trim() || undefined,
+      Instructions: instructions.value.trim(),
+      IsEnabled: enabled.value,
+    }
+    if (editingId.value) await aiApi.updateSkill(editingId.value, payload)
+    else await aiApi.createSkill(payload)
+    ElMessage.success(editingId.value ? 'Skill 已更新' : 'Skill 已创建并保存')
+    reset()
+    await refresh()
+  } catch (reason) {
+    ElMessage.error((reason as Error).message || '保存失败')
+  } finally {
+    saving.value = false
+  }
+}
+/** 读取本地文本作为草稿；保留 128KB 输入限制，确认保存后才生效。 */
+const importFile = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (file.size > 128 * 1024) {
+    ElMessage.warning('Skill 规范文件不能超过 128KB')
+    return
+  }
+  instructions.value = await file.text()
+  if (!name.value) name.value = file.name.replace(/\.(md|txt)$/i, '')
+  ElMessage.success('已读取规范文件，确认后保存即可生效')
+}
+/** 服务端确认成功后更新开关；失败重读列表恢复权威状态。 */
+const toggle = async (item: UserSkill, value: string | number | boolean) => {
+  try {
+    await aiApi.updateSkill(item.Id, {
+      Name: item.Name,
+      Description: item.Description,
+      Instructions: item.Instructions,
+      IsEnabled: Boolean(value),
+    })
+    item.IsEnabled = Boolean(value)
+    await refresh()
+  } catch (reason) {
+    ElMessage.error((reason as Error).message || '状态更新失败')
+    await refresh()
+  }
+}
+/** 明确确认后删除，并清理可能指向已删除记录的草稿。 */
+const remove = async (item: UserSkill) => {
+  try {
+    await ElMessageBox.confirm(`删除 Skill“${item.Name}”？`, '删除 Skill', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await aiApi.deleteSkill(item.Id)
+    items.value = items.value.filter((candidate) => candidate.Id !== item.Id)
+    if (editingId.value === item.Id) reset()
+    await refresh()
+  } catch (reason) {
+    if (reason !== 'cancel' && reason !== 'close')
+      ElMessage.error((reason as Error).message || '删除失败')
+  }
+}
 onMounted(load)
 </script>
 
 <template>
-  <PersonalWorkspaceLayout title="我的 Skill" description="管理会话输出结构、语气和交付格式；系统安全与事实边界始终优先。" icon="lucide:wand-sparkles">
-    <template #actions><button class="tool-button" @click="reset"><Icon icon="lucide:plus" />新建 Skill</button><button class="tool-button primary" @click="fileInput?.click()"><Icon icon="lucide:file-up" />导入规范</button><input ref="fileInput" class="sr-only" type="file" accept=".md,.txt,text/markdown,text/plain" @change="importFile" /></template>
+  <PersonalWorkspaceLayout
+    title="我的 Skill"
+    description="管理会话输出结构、语气和交付格式；系统安全与事实边界始终优先。"
+    icon="lucide:wand-sparkles"
+  >
+    <template #actions
+      ><button class="tool-button" @click="reset"><Icon icon="lucide:plus" />新建 Skill</button
+      ><button class="tool-button primary" @click="fileInput?.click()">
+        <Icon icon="lucide:file-up" />导入规范</button
+      ><input
+        ref="fileInput"
+        class="sr-only"
+        type="file"
+        accept=".md,.txt,text/markdown,text/plain"
+        @change="importFile"
+    /></template>
     <div class="skill-workspace">
-      <section class="skill-list workspace-panel"><header><div><strong>已保存的 Skill</strong><small>{{ items.length }} 项 · {{ items.filter(item => item.IsEnabled).length }} 项启用</small></div><button class="row-action" title="刷新" @click="load"><Icon icon="lucide:refresh-cw" /></button></header><div v-if="loading" class="workspace-empty compact"><Icon icon="lucide:loader-circle" class="spin" /><h2>正在读取 Skill</h2></div><div v-else-if="error" class="workspace-empty compact error"><Icon icon="lucide:circle-alert" /><h2>读取失败</h2><p>{{ error }}</p></div><div v-else-if="!items.length" class="workspace-empty compact"><Icon icon="lucide:wand-sparkles" /><h2>还没有 Skill</h2><p>创建一条规范，或导入 Markdown / TXT 文件。</p></div><div v-else class="skill-items"><article v-for="item in items" :key="item.Id" :class="{ active: editingId === item.Id }" @click="edit(item)"><span class="skill-status" :class="{ enabled: item.IsEnabled }"><Icon icon="lucide:sparkles" /></span><div><strong>{{ item.Name }}</strong><p>{{ item.Description || '未填写用途说明' }}</p><small>{{ item.Instructions.length.toLocaleString() }} 字符</small></div><ElSwitch :model-value="item.IsEnabled" @click.stop @change="toggle(item, $event)" /><button class="row-action danger" title="删除" @click.stop="remove(item)"><Icon icon="lucide:trash-2" /></button></article></div></section>
-      <section class="skill-editor workspace-panel"><header><div><strong>{{ editingId ? '编辑 Skill' : '创建 Skill' }}</strong><small>{{ editingId ? '修改后会应用到后续会话' : '保存后即可在会话中生效' }}</small></div><span>{{ instructions.length.toLocaleString() }} / 12,000</span></header><div class="editor-fields"><label><span>名称</span><input v-model="name" maxlength="80" placeholder="例如：技术方案写作" /></label><label><span>用途说明</span><input v-model="description" maxlength="500" placeholder="说明适用任务，方便后续识别" /></label><label class="grow"><span>输出规范</span><textarea v-model="instructions" maxlength="12000" placeholder="使用 Markdown 描述标题层级、语气、必填字段、交付格式和验收清单…" /></label></div><footer><label class="switch-label"><ElSwitch v-model="enabled" /><span>启用此 Skill</span></label><div><button v-if="editingId" class="tool-button" @click="reset">取消编辑</button><button class="tool-button primary" :disabled="saving || !name.trim() || !instructions.trim()" @click="save"><Icon :icon="saving ? 'lucide:loader-circle' : 'lucide:save'" />{{ saving ? '正在保存' : '保存 Skill' }}</button></div></footer></section>
+      <section class="skill-list workspace-panel">
+        <header>
+          <div>
+            <strong>已保存的 Skill</strong
+            ><small
+              >{{ items.length }} 项 ·
+              {{ items.filter((item) => item.IsEnabled).length }} 项启用</small
+            >
+          </div>
+          <button class="row-action" title="刷新" @click="load">
+            <Icon icon="lucide:refresh-cw" />
+          </button>
+        </header>
+        <div v-if="loading" class="workspace-empty compact">
+          <Icon icon="lucide:loader-circle" class="spin" />
+          <h2>正在读取 Skill</h2>
+        </div>
+        <div v-else-if="error" class="workspace-empty compact error">
+          <Icon icon="lucide:circle-alert" />
+          <h2>读取失败</h2>
+          <p>{{ error }}</p>
+        </div>
+        <div v-else-if="!items.length" class="workspace-empty compact">
+          <Icon icon="lucide:wand-sparkles" />
+          <h2>还没有 Skill</h2>
+          <p>创建一条规范，或导入 Markdown / TXT 文件。</p>
+        </div>
+        <div v-else class="skill-items">
+          <article
+            v-for="item in items"
+            :key="item.Id"
+            :class="{ active: editingId === item.Id }"
+            @click="edit(item)"
+          >
+            <span class="skill-status" :class="{ enabled: item.IsEnabled }"
+              ><Icon icon="lucide:sparkles"
+            /></span>
+            <div>
+              <strong>{{ item.Name }}</strong>
+              <p>{{ item.Description || '未填写用途说明' }}</p>
+              <small>{{ item.Instructions.length.toLocaleString() }} 字符</small>
+            </div>
+            <ElSwitch
+              :model-value="item.IsEnabled"
+              @click.stop
+              @change="toggle(item, $event)"
+            /><button class="row-action danger" title="删除" @click.stop="remove(item)">
+              <Icon icon="lucide:trash-2" />
+            </button>
+          </article>
+        </div>
+      </section>
+      <section class="skill-editor workspace-panel">
+        <header>
+          <div>
+            <strong>{{ editingId ? '编辑 Skill' : '创建 Skill' }}</strong
+            ><small>{{ editingId ? '修改后会应用到后续会话' : '保存后即可在会话中生效' }}</small>
+          </div>
+          <span>{{ instructions.length.toLocaleString() }} / 12,000</span>
+        </header>
+        <div class="editor-fields">
+          <label
+            ><span>名称</span
+            ><input v-model="name" maxlength="80" placeholder="例如：技术方案写作" /></label
+          ><label
+            ><span>用途说明</span
+            ><input
+              v-model="description"
+              maxlength="500"
+              placeholder="说明适用任务，方便后续识别" /></label
+          ><label class="grow"
+            ><span>输出规范</span
+            ><textarea
+              v-model="instructions"
+              maxlength="12000"
+              placeholder="使用 Markdown 描述标题层级、语气、必填字段、交付格式和验收清单…"
+            />
+          </label>
+        </div>
+        <footer>
+          <label class="switch-label"
+            ><ElSwitch v-model="enabled" /><span>启用此 Skill</span></label
+          >
+          <div>
+            <button v-if="editingId" class="tool-button" @click="reset">取消编辑</button
+            ><button
+              class="tool-button primary"
+              :disabled="saving || !name.trim() || !instructions.trim()"
+              @click="save"
+            >
+              <Icon :icon="saving ? 'lucide:loader-circle' : 'lucide:save'" />{{
+                saving ? '正在保存' : '保存 Skill'
+              }}
+            </button>
+          </div>
+        </footer>
+      </section>
     </div>
   </PersonalWorkspaceLayout>
 </template>
 
 <style scoped>
-.skill-workspace{min-height:560px;display:grid;grid-template-columns:minmax(270px,340px) minmax(0,1fr);gap:12px}.skill-list,.skill-editor{min-height:0;overflow:hidden;display:flex;flex-direction:column}.skill-list>header,.skill-editor>header{height:51px;flex:0 0 51px;padding:0 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}.skill-list>header>div,.skill-editor>header>div{display:flex;flex-direction:column}.skill-list header strong,.skill-editor header strong{font-size:11px}.skill-list header small,.skill-editor header small,.skill-editor>header>span{color:var(--muted);font-size:9px}.skill-items{min-height:0;flex:1;overflow:auto;padding:5px;scrollbar-width:thin}.skill-items article{min-height:66px;padding:8px;border-radius:9px;display:grid;grid-template-columns:31px minmax(0,1fr) auto auto;align-items:center;gap:8px;cursor:pointer}.skill-items article:hover,.skill-items article.active{background:var(--surface-subtle)}.skill-items article.active{box-shadow:inset 2px 0 var(--primary)}.skill-status{width:29px;height:29px;border-radius:8px;background:var(--surface-subtle);color:var(--muted);display:grid;place-items:center}.skill-status.enabled{background:var(--primary-soft);color:var(--primary)}.skill-items article>div{min-width:0;display:flex;flex-direction:column}.skill-items strong,.skill-items p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.skill-items strong{font-size:11px}.skill-items p{margin:1px 0;color:var(--muted);font-size:9px}.skill-items small{color:var(--tertiary);font-size:8px}.row-action{width:27px;height:27px;border:0;border-radius:7px;background:transparent;color:var(--muted);display:grid;place-items:center}.row-action:hover{background:var(--surface)}.row-action.danger:hover{color:var(--danger)}.editor-fields{min-height:0;flex:1;padding:14px;display:flex;flex-direction:column;gap:11px}.editor-fields label{display:flex;flex-direction:column;gap:5px}.editor-fields label>span{color:var(--muted);font-size:10px}.editor-fields input,.editor-fields textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);padding:9px 10px;outline:0;font:inherit;font-size:11px}.editor-fields input:focus,.editor-fields textarea:focus{border-color:color-mix(in srgb,var(--primary) 60%,var(--border));box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 8%,transparent)}.editor-fields .grow{min-height:0;flex:1}.editor-fields textarea{height:100%;min-height:260px;resize:none;line-height:1.65}.skill-editor>footer{min-height:52px;padding:8px 12px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}.skill-editor>footer>div{display:flex;gap:7px}.switch-label{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:10px}.workspace-empty.compact{min-height:220px}.workspace-empty.error>svg{color:var(--danger)}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-@media(max-width:760px){.skill-workspace{grid-template-columns:1fr;min-height:auto}.skill-list{max-height:280px}.skill-editor{min-height:480px}.editor-fields textarea{min-height:230px}}
+.skill-workspace {
+  min-height: 560px;
+  display: grid;
+  grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+  gap: 12px;
+}
+.skill-list,
+.skill-editor {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.skill-list > header,
+.skill-editor > header {
+  height: 51px;
+  flex: 0 0 51px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.skill-list > header > div,
+.skill-editor > header > div {
+  display: flex;
+  flex-direction: column;
+}
+.skill-list header strong,
+.skill-editor header strong {
+  font-size: 11px;
+}
+.skill-list header small,
+.skill-editor header small,
+.skill-editor > header > span {
+  color: var(--muted);
+  font-size: 9px;
+}
+.skill-items {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 5px;
+  scrollbar-width: thin;
+}
+.skill-items article {
+  min-height: 66px;
+  padding: 8px;
+  border-radius: 9px;
+  display: grid;
+  grid-template-columns: 31px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.skill-items article:hover,
+.skill-items article.active {
+  background: var(--surface-subtle);
+}
+.skill-items article.active {
+  box-shadow: inset 2px 0 var(--primary);
+}
+.skill-status {
+  width: 29px;
+  height: 29px;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+.skill-status.enabled {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.skill-items article > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.skill-items strong,
+.skill-items p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.skill-items strong {
+  font-size: 11px;
+}
+.skill-items p {
+  margin: 1px 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+.skill-items small {
+  color: var(--tertiary);
+  font-size: 8px;
+}
+.row-action {
+  width: 27px;
+  height: 27px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+.row-action:hover {
+  background: var(--surface);
+}
+.row-action.danger:hover {
+  color: var(--danger);
+}
+.editor-fields {
+  min-height: 0;
+  flex: 1;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.editor-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.editor-fields label > span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.editor-fields input,
+.editor-fields textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 9px 10px;
+  outline: 0;
+  font: inherit;
+  font-size: 11px;
+}
+.editor-fields input:focus,
+.editor-fields textarea:focus {
+  border-color: color-mix(in srgb, var(--primary) 60%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 8%, transparent);
+}
+.editor-fields .grow {
+  min-height: 0;
+  flex: 1;
+}
+.editor-fields textarea {
+  height: 100%;
+  min-height: 260px;
+  resize: none;
+  line-height: 1.65;
+}
+.skill-editor > footer {
+  min-height: 52px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.skill-editor > footer > div {
+  display: flex;
+  gap: 7px;
+}
+.switch-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.workspace-empty.compact {
+  min-height: 220px;
+}
+.workspace-empty.error > svg {
+  color: var(--danger);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 760px) {
+  .skill-workspace {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .skill-list {
+    max-height: 280px;
+  }
+  .skill-editor {
+    min-height: 480px;
+  }
+  .editor-fields textarea {
+    min-height: 230px;
+  }
+}
 </style>

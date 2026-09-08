@@ -1,24 +1,44 @@
+/** 执行步骤展示适配：只显示公开进度，不把内部推理原文作为用户可见摘要。 */
 import type { Citation, TraceStep } from '@/types/ai'
 import { sanitizeReasoningText } from '@/utils/reasoningSafety'
 
+/** 时间线视觉分类，thought 仅表达分析阶段而非内部推理内容。 */
 export type ExecutionStepKind = 'thought' | 'search' | 'read' | 'tool'
 
 const terminalStatuses = new Set(['completed', 'failed', 'cancelled', 'blocked', 'skipped'])
 
+/** 按真实工具码归类；空码与回答生成阶段归为分析展示。 */
 export function executionStepKind(step: TraceStep): ExecutionStepKind {
   const code = (step.ToolCode || '').toLowerCase()
-  if (!code || code.includes('reason') || code.includes('response_generation') || code.includes('response_recovery')) return 'thought'
-  if (code.includes('web_search') || code.includes('search_web') || code === 'search') return 'search'
-  if (code.includes('attachment-read') || code.includes('web_read') || code.includes('read_page') || code.includes('web_fetch') || code.includes('crawl') || code.includes('fetch_url')) return 'read'
+  if (
+    !code ||
+    code.includes('reason') ||
+    code.includes('response_generation') ||
+    code.includes('response_recovery')
+  )
+    return 'thought'
+  if (code.includes('web_search') || code.includes('search_web') || code === 'search')
+    return 'search'
+  if (
+    code.includes('attachment-read') ||
+    code.includes('web_read') ||
+    code.includes('read_page') ||
+    code.includes('web_fetch') ||
+    code.includes('crawl') ||
+    code.includes('fetch_url')
+  )
+    return 'read'
   return 'tool'
 }
 
+/** 将工具码和公开标题映射为简短标签，不直接暴露未知内部工具码。 */
 export function executionStepLabel(step: TraceStep): string {
   const kind = executionStepKind(step)
   const code = (step.ToolCode || '').toLowerCase()
   const publicText = `${step.Title || ''} ${step.Detail || ''}`
   if (kind === 'search') return 'Search'
-  if (kind === 'read') return step.ToolCode?.toLowerCase().includes('attachment') ? 'Read File' : 'Read Page'
+  if (kind === 'read')
+    return step.ToolCode?.toLowerCase().includes('attachment') ? 'Read File' : 'Read Page'
   if (kind === 'thought') return step.Status === 'running' ? '正在分析' : '分析完成'
   if (code.includes('evidence_verification')) return 'Verify'
   if (code.includes('answer_synthesis')) return 'Answer'
@@ -31,43 +51,84 @@ export function executionStepLabel(step: TraceStep): string {
   return 'Tool'
 }
 
+/** 分析阶段使用固定文案，其余公开摘要经过敏感信息过滤。 */
 export function executionStepSummary(step: TraceStep): string {
   const kind = executionStepKind(step)
-  if (kind === 'thought') return step.Status === 'running' ? '正在理解问题并组织回答' : '已完成问题分析与回答组织'
+  if (kind === 'thought')
+    return step.Status === 'running' ? '正在理解问题并组织回答' : '已完成问题分析与回答组织'
   if (kind === 'search' && step.Status === 'running') return '正在检索并核验公开信息'
-  if (kind === 'tool' && step.ToolCode && step.Title.trim().toLowerCase() === step.ToolCode.trim().toLowerCase()) return step.Status === 'running' ? '正在执行授权操作' : '授权操作已完成'
-  return sanitizeReasoningText(step.Detail || step.Title || (step.Status === 'running' ? '正在执行' : '执行完成'))
+  if (
+    kind === 'tool' &&
+    step.ToolCode &&
+    step.Title.trim().toLowerCase() === step.ToolCode.trim().toLowerCase()
+  )
+    return step.Status === 'running' ? '正在执行授权操作' : '授权操作已完成'
+  return sanitizeReasoningText(
+    step.Detail || step.Title || (step.Status === 'running' ? '正在执行' : '执行完成'),
+  )
 }
 
-export function executionResultCount(step: TraceStep, sources: Citation[] = []): number | undefined {
+/** 检索优先使用本步骤文案中的结果数，缺失时才回退已合并引用数量。 */
+export function executionResultCount(
+  step: TraceStep,
+  sources: Citation[] = [],
+): number | undefined {
   if (executionStepKind(step) !== 'search') return undefined
-  const match = `${step.Title || ''} ${step.Detail || ''}`.match(/(\d+)\s*(?:条|个)\s*(?:互联网|网页|搜索|可核验|证据|结果|来源)?/)
+  const match = `${step.Title || ''} ${step.Detail || ''}`.match(
+    /(\d+)\s*(?:条|个)\s*(?:互联网|网页|搜索|可核验|证据|结果|来源)?/,
+  )
   return match ? Number(match[1]) : sources.length || undefined
 }
 
+/** 运行时根据本地开始时间推进，终态使用服务端耗时并停止增长。 */
 export function executionElapsedMs(step: TraceStep, now: number): number {
-  if (terminalStatuses.has(step.Status) && step.ElapsedMs != null) return Math.max(0, step.ElapsedMs)
-  if (step.Status === 'running' && step.StartedAtMs) return Math.max(step.ElapsedMs || 0, now - step.StartedAtMs)
+  if (terminalStatuses.has(step.Status) && step.ElapsedMs != null)
+    return Math.max(0, step.ElapsedMs)
+  if (step.Status === 'running' && step.StartedAtMs)
+    return Math.max(step.ElapsedMs || 0, now - step.StartedAtMs)
   return Math.max(0, step.ElapsedMs || 0)
 }
 
-const value = (source: Record<string, unknown>, pascal: string, camel: string) => source[pascal] ?? source[camel]
+const value = (source: Record<string, unknown>, pascal: string, camel: string) =>
+  source[pascal] ?? source[camel]
 
+/** 将历史 ToolSteps 的字段别名映射到展示类型，不补造不存在的步骤。 */
 export function normalizePersistedTraceSteps(steps?: Array<Record<string, unknown>>): TraceStep[] {
   return (steps || []).map((source, index) => ({
-    StepId: String(value(source, 'InvocationId', 'invocationId') || value(source, 'StepId', 'stepId') || `history-step-${index}`),
+    StepId: String(
+      value(source, 'InvocationId', 'invocationId') ||
+        value(source, 'StepId', 'stepId') ||
+        `history-step-${index}`,
+    ),
     ToolCode: String(value(source, 'ToolCode', 'toolCode') || '') || undefined,
-    Title: String(value(source, 'Message', 'message') || value(source, 'Title', 'title') || '执行步骤'),
+    Title: String(
+      value(source, 'Message', 'message') || value(source, 'Title', 'title') || '执行步骤',
+    ),
     Detail: String(value(source, 'Detail', 'detail') || '') || undefined,
-    Status: normalizeStatus(String(value(source, 'Stage', 'stage') || value(source, 'Status', 'status') || 'completed')),
+    Status: normalizeStatus(
+      String(value(source, 'Stage', 'stage') || value(source, 'Status', 'status') || 'completed'),
+    ),
     Progress: numberValue(value(source, 'Progress', 'progress')),
-    ElapsedMs: numberValue(value(source, 'ElapsedMs', 'elapsedMs'))
+    ElapsedMs: numberValue(value(source, 'ElapsedMs', 'elapsedMs')),
   }))
 }
 
 function normalizeStatus(status: string): TraceStep['Status'] {
   const normalized = status.toLowerCase()
-  if (['queued', 'running', 'waiting_user', 'approval_required', 'blocked', 'completed', 'failed', 'cancelled', 'skipped'].includes(normalized)) return normalized as TraceStep['Status']
+  if (
+    [
+      'queued',
+      'running',
+      'waiting_user',
+      'approval_required',
+      'blocked',
+      'completed',
+      'failed',
+      'cancelled',
+      'skipped',
+    ].includes(normalized)
+  )
+    return normalized as TraceStep['Status']
   return normalized === 'started' || normalized === 'progress' ? 'running' : 'completed'
 }
 

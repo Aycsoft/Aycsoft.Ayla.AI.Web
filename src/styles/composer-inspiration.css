@@ -1,0 +1,130 @@
+/* 输入区关联的灵感与案例布局及移动端规则。
+ * 由 styles.css 按固定顺序加载；跨模块覆盖不可随意移动。
+ */
+/* Input-adjacent inspiration strip. Templates are never presented as generated cases. */
+.composer:has(.media-workspace-panel) {
+  width: min(820px, calc(100% - 32px));
+  padding-bottom: 11px;
+}
+.composer .media-workspace-panel {
+  position: static;
+  inset: auto;
+  transform: none;
+  width: 100%;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(220px, 0.65fr);
+  gap: 8px;
+}
+.composer .media-recommendations,
+.composer .media-cases {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.composer .media-workspace-panel header {
+  margin-bottom: 6px;
+}
+.composer .media-recommendations > div {
+  gap: 6px;
+}
+.composer .media-recommendations button {
+  flex: 0 0 170px;
+  min-height: 52px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.composer .media-recommendations button > svg:first-child {
+  font-size: 17px;
+  color: var(--primary);
+}
+.composer .media-recommendations button > svg:last-child {
+  margin-left: auto;
+  color: var(--muted);
+}
+.composer .media-recommendations button > span {
+  display: flex;
+  flex-direction: column;
+}
+.composer .media-recommendations button strong {
+  font-size: 10px;
+}
+.composer .media-recommendations button small {
+  font-size: 9px;
+  color: var(--muted);
+}
+.composer .media-case-grid a {
+  flex-basis: 112px;
+}
+.composer .media-case-grid a > span {
+  display: flex;
+  flex-direction: column;
+}
+.composer .media-case-grid a strong {
+  font-size: 9px;
+}
+.composer .media-case-grid a small {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--success);
+  font-size: 8px;
+}
+.composer .media-case-empty {
+  min-height: 52px;
+  padding: 7px;
+  justify-content: flex-start;
+  text-align: left;
+}
+.composer .media-case-empty > span {
+  display: flex;
+  flex-direction: column;
+}
+.composer .media-case-empty strong {
+  font-size: 9px;
+  color: var(--text);
+}
+.composer .media-case-empty small {
+  font-size: 8px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.chat-center:has(.media-workspace-panel) .message-list {
+  padding-top: 54px;
+  padding-bottom: 290px;
+}
+.composer:has(.media-workspace-panel) .composer-hint {
+  display: none;
+}
+@media (max-width: 760px) {
+  .composer:has(.media-workspace-panel) {
+    width: calc(100% - 16px);
+  }
+  .composer .media-workspace-panel {
+    grid-template-columns: 1fr;
+  }
+  .composer .media-cases {
+    display: none;
+  }
+  .composer .media-workspace-panel header small {
+    display: none;
+  }
+  .chat-center:has(.media-workspace-panel) .message-list {
+    padding-top: 30px;
+    padding-bottom: 270px;
+  }
+  .code-card > header > div button {
+    font-size: 0;
+    padding: 0 6px;
+  }
+  .code-card > header > div button svg {
+    font-size: 13px;
+  }
+}

@@ -1,0 +1,273 @@
+/* 侧栏折叠恢复、深色表面与账号弹窗主题覆盖。
+ * 由 styles.css 按固定顺序加载；跨模块覆盖不可随意移动。
+ */
+/* Sidebar recovery and complete theme surfaces. */
+.minimax-sidebar.collapsed .brand-home {
+  display: none;
+}
+.minimax-sidebar.collapsed .sidebar-collapse {
+  display: grid !important;
+  margin: auto;
+}
+:root.dark {
+  --mm-line: #2a3442;
+  --mm-selected: #242e3b;
+  --mm-text: #eef3f8;
+  --mm-secondary: #aab5c3;
+  --mm-weak: #788698;
+  --bg: #0f141b;
+  --surface: #171e27;
+  --surface-subtle: #1c2530;
+  --text: #eef3f8;
+  --border: #2a3442;
+}
+:root.dark body,
+:root.dark .chat-page,
+:root.dark .chat-center,
+:root.dark .chat-header,
+:root.dark .message-list {
+  background: var(--bg);
+  color: var(--text);
+}
+:root.dark .minimax-sidebar,
+:root.dark .sidebar-search,
+:root.dark .account-popover,
+:root.dark .account-avatar,
+:root.dark .composer,
+:root.dark .model-picker-popover,
+:root.dark .model-picker-search,
+:root.dark .option-picker-trigger,
+:root.dark .option-picker-menu {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+:root.dark .sidebar-primary > button,
+:root.dark .sidebar-group > button,
+:root.dark .recent-task,
+:root.dark .brand-home,
+:root.dark .sidebar-collapse,
+:root.dark .sidebar-mobile-close,
+:root.dark .sidebar-account > button,
+:root.dark .account-popover button {
+  color: var(--text);
+}
+:root.dark .user-message,
+:root.dark .quick-grid button,
+:root.dark .generation-guidance,
+:root.dark .real-case-empty,
+:root.dark .media-recommendations,
+:root.dark .media-cases,
+:root.dark .model-picker-list > button:hover,
+:root.dark .model-picker-list > button.active,
+:root.dark .auth-info {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text);
+}
+:root.dark .composer textarea,
+:root.dark .sidebar-search input,
+:root.dark .model-picker-search input,
+:root.dark .auth-field input {
+  color: var(--text);
+}
+:root.dark .auth-panel,
+:root.dark .auth-page {
+  background: var(--bg);
+  color: var(--text);
+}
+:root.dark .auth-card {
+  color: var(--text);
+}
+:root.dark .auth-channel-tabs > button,
+:root.dark .auth-field > div,
+:root.dark .purpose-grid button,
+:root.dark .auth-mode-tabs button.active {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+:root.dark .auth-mode-tabs {
+  background: var(--surface-subtle);
+}
+.auth-login-methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin: 0 0 13px;
+}
+.auth-login-methods button {
+  height: 35px;
+  border: 1px solid #e2e7ed;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 10px;
+}
+.auth-login-methods button.active {
+  border-color: #7ab9f4;
+  background: #eef7ff;
+  color: #287dcc;
+}
+.auth-forgot {
+  display: block;
+  margin: 8px 0 0 auto;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: #2789e5;
+  font-size: 10px;
+}
+.auth-reset-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border-radius: 9px;
+  background: #f6f9fc;
+}
+.auth-reset-heading > button {
+  width: 29px;
+  height: 29px;
+  border: 1px solid #e0e6ec;
+  border-radius: 8px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+}
+.auth-reset-heading > span {
+  display: flex;
+  flex-direction: column;
+}
+.auth-reset-heading strong {
+  font-size: 11px;
+}
+.auth-reset-heading small {
+  font-size: 9px;
+  color: var(--muted);
+}
+.auth-password-field > button {
+  width: 27px;
+  height: 27px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+.password-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  background: rgba(15, 23, 42, 0.36);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  backdrop-filter: blur(3px);
+}
+.password-dialog {
+  width: min(430px, 100%);
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+  color: var(--text);
+}
+.password-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.password-dialog > header > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.password-dialog > header > span > svg {
+  font-size: 19px;
+  color: var(--primary);
+}
+.password-dialog > header strong {
+  font-size: 15px;
+}
+.password-dialog > header > button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.password-dialog > header > button:hover {
+  background: var(--surface-subtle);
+}
+.password-dialog > p {
+  margin: 9px 0 3px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.password-strength {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-top: 6px;
+}
+.password-strength i {
+  height: 3px;
+  border-radius: 3px;
+  background: var(--border);
+}
+.password-strength i.active {
+  background: var(--primary);
+}
+.password-visibility {
+  margin-top: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.password-dialog > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 15px;
+}
+.password-dialog > footer .auth-primary {
+  width: auto;
+  min-width: 118px;
+  margin: 0;
+  height: 38px;
+}
+.password-cancel {
+  height: 38px;
+  padding: 0 15px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+}
+:root.dark .auth-login-methods button,
+:root.dark .auth-reset-heading,
+:root.dark .auth-reset-heading > button,
+:root.dark .password-cancel {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text);
+}
+:root.dark .auth-login-methods button.active {
+  background: var(--primary-soft);
+  color: #83c5ff;
+}

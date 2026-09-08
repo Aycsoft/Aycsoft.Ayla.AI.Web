@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 统一品牌标识，加载失败依次回退到随包图片和文字。
+ * size 为像素尺寸；品牌设置变化后重新尝试配置的 Logo。
+ */
 import { ref, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -10,13 +14,14 @@ const source = ref(settings.logoUrl)
 
 watch(
   () => settings.logoUrl,
-  value => {
+  (value) => {
     source.value = value
     failed.value = false
-  }
+  },
 )
 
 const recoverLogo = () => {
+  // 随包图片也失败后停止切换，避免 error 事件不断触发同一路径重试。
   if (source.value !== bundledLogo) {
     source.value = bundledLogo
     return

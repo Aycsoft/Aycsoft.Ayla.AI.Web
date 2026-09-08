@@ -1,3 +1,4 @@
+# 预构建宿主镜像：构建上下文需同时提供 dotnet publish 的 host/ 和 Vite 的 dist/。
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 USER $APP_UID
 WORKDIR /app

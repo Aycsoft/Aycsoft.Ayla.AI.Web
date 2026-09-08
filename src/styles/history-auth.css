@@ -1,0 +1,376 @@
+/* 历史滚动交互、账号提供方与 SSO 状态页面。
+ * 由 styles.css 按固定顺序加载；跨模块覆盖不可随意移动。
+ */
+/* History list remains visually quiet until the pointer reaches the scroll area. */
+.recent-group {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.recent-group:hover {
+  scrollbar-color: color-mix(in srgb, var(--muted) 38%, transparent) transparent;
+}
+.recent-group::-webkit-scrollbar {
+  width: 4px;
+}
+.recent-group::-webkit-scrollbar-track {
+  background: transparent;
+}
+.recent-group::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: transparent;
+}
+.recent-group:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 38%, transparent);
+}
+
+.workspace-resize-handle {
+  position: absolute !important;
+  z-index: 3;
+  left: -4px;
+  top: 0;
+  width: 8px !important;
+  height: 100% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  cursor: col-resize !important;
+  touch-action: none;
+}
+.workspace-resize-handle:hover,
+.workspace-resize-handle:focus-visible {
+  background: color-mix(in srgb, var(--primary) 24%, transparent) !important;
+}
+.code-preview-workspace {
+  position: absolute;
+  z-index: 125;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: -18px 0 50px rgba(15, 23, 42, 0.11);
+  transform: translateX(105%);
+  transition: transform 0.22s ease;
+  display: flex;
+  flex-direction: column;
+}
+.code-preview-workspace.open {
+  transform: translateX(0);
+}
+.code-preview-workspace > header {
+  height: 48px;
+  flex: 0 0 48px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.code-preview-workspace > header > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.code-preview-workspace > header strong {
+  font-size: 12px;
+}
+.code-preview-workspace > header small {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--surface-subtle);
+  color: var(--muted);
+  font-size: 9px;
+}
+.code-preview-workspace > header button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+}
+.code-preview-workspace > iframe {
+  min-height: 0;
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+@media (max-width: 760px) {
+  .code-preview-workspace {
+    position: fixed;
+    width: 100vw !important;
+  }
+  .workspace-resize-handle {
+    display: none;
+  }
+}
+.artifact-workspace:not(.open),
+.code-preview-workspace:not(.open) {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.citations {
+  width: min(100%, 680px);
+  margin-top: 14px;
+}
+.citations details {
+  border: 0;
+}
+.citations summary {
+  width: max-content;
+  padding: 4px 0;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.citations summary::-webkit-details-marker {
+  display: none;
+}
+.citations summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 160ms ease;
+}
+.citations details[open] summary::before {
+  transform: rotate(45deg);
+}
+.citations summary svg {
+  flex: 0 0 auto;
+}
+.citations ol {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 5px;
+}
+.citations li > a,
+.citations li > span {
+  min-width: 0;
+  padding: 7px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  color: var(--text);
+  text-decoration: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 2px 8px;
+  align-items: center;
+}
+.citations li > a:hover {
+  color: var(--primary);
+}
+.citation-primary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.citation-primary > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+.citations li small {
+  grid-column: 2;
+  grid-row: 1;
+  color: var(--tertiary);
+  font-size: 8px;
+}
+.citations li .citation-external {
+  grid-column: 3;
+  grid-row: 1;
+  color: var(--muted);
+  font-size: 12px;
+}
+.source-favicon {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--muted);
+}
+.source-favicon img {
+  width: 12px;
+  height: 12px;
+  object-fit: contain;
+}
+.source-favicon svg {
+  font-size: 11px;
+}
+
+.internal-provider {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface);
+}
+.internal-provider-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.internal-provider-brand > span {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--primary) 11%, transparent);
+  color: var(--primary);
+}
+.internal-provider-brand > div {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.internal-provider-brand strong {
+  font-size: 12px;
+}
+.internal-provider-brand small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.internal-provider-brand > svg {
+  color: #28a56b;
+  font-size: 17px;
+}
+.internal-auth-flow {
+  margin: 16px 0 12px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  list-style: none;
+}
+.internal-auth-flow li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 9px;
+  text-align: center;
+}
+.internal-auth-flow li:not(:last-child):after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: calc(50% + 14px);
+  right: calc(-50% + 14px);
+  height: 1px;
+  background: var(--border);
+}
+.internal-auth-flow span {
+  position: relative;
+  z-index: 1;
+  width: 21px;
+  height: 21px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  font-weight: 650;
+}
+.internal-provider > p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.internal-provider > p svg {
+  color: #28a56b;
+}
+
+.sso-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(
+      circle at 50% 20%,
+      color-mix(in srgb, var(--primary) 8%, transparent),
+      transparent 42%
+    ),
+    var(--bg);
+}
+.sso-card {
+  width: min(390px, 100%);
+  padding: 30px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.sso-status-icon {
+  width: 38px;
+  height: 38px;
+  margin: 18px 0 10px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+}
+.sso-status-icon svg {
+  font-size: 20px;
+  animation: spin 1s linear infinite;
+}
+.sso-status-icon.error {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+.sso-status-icon.error svg {
+  animation: none;
+}
+.sso-card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.sso-card > p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.sso-actions {
+  width: 100%;
+  margin-top: 7px;
+}
+.sso-secondary {
+  width: 100%;
+  height: 40px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}

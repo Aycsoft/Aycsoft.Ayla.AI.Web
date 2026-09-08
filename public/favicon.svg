@@ -1,4 +1,5 @@
+<!-- Ayla 站点矢量图标；保留 viewBox 便于浏览器按尺寸缩放。 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Ayla">
-  <rect width="64" height="64" rx="16" fill="#419fff"/>
-  <path d="M18 46 28.5 17h7L46 46h-7l-2-6H27l-2 6h-7Zm11-12h6l-3-9-3 9Z" fill="#fff"/>
+  <rect width="64" height="64" rx="16" fill="#419fff" />
+  <path d="M18 46 28.5 17h7L46 46h-7l-2-6H27l-2 6h-7Zm11-12h6l-3-9-3 9Z" fill="#fff" />
 </svg>
