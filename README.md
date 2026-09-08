@@ -149,23 +149,11 @@ pnpm check
 
 完整 Nginx 示例、转发头、SPA 回退、SSE 超时和健康检查见 [`deployment/nginx`](deployment/nginx)。生产环境应使用公开 HTTPS 域名，并同步配置 SSO 回跳地址和后端允许列表。
 
-## 搜索引擎与项目发现
-
-项目已提供语义化标题与摘要、Open Graph、Twitter Card、Schema.org JSON-LD、静态项目介绍页，以及由发布宿主提供的 `robots.txt` 和 `sitemap.xml`。品牌和作者身份采用自然语言关联：
-
-- 产品：**Ayla / Ayla AI Workspace**
-- 品牌：**Aycsoft**
-- 创建者：**杨鹏 / Peng Yang / Perry Yang / YangPeng**
-
-<!-- 公开部署后还需要在 Google Search Console 与百度搜索资源平台验证真实域名并提交站点地图。具体检查清单见 [docs/seo-and-discovery.md](docs/seo-and-discovery.md)。搜索引擎是否以及何时收录由其抓取和质量系统决定，仓库不能承诺即时排名。 -->
-
 ## 作者与品牌
 
 - Creator: **杨鹏（Peng Yang / Perry Yang / YangPeng）**
 - GitHub: [Aycsoft](https://github.com/Aycsoft)
 - Repository: [Aycsoft/Aycsoft.Ayla.AI.Web](https://github.com/Aycsoft/Aycsoft.Ayla.AI.Web)
-
-作者信息也记录在 [AUTHORS.md](AUTHORS.md) 与 [CITATION.cff](CITATION.cff)，便于搜索引擎、代码托管平台和引用工具识别同一身份。
 
 ## 安全、贡献与许可
 
