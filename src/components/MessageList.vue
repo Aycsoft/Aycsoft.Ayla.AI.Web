@@ -8,6 +8,7 @@ import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import 'element-plus/es/components/message/style/css.mjs'
 import { aiApi } from '@/api/ai'
+import { formatMessageTime, parseApiTime } from '@/utils/apiTime'
 import { useChatStore } from '@/stores/chat'
 import ReasoningTimeline from '@/components/ReasoningTimeline.vue'
 import RichMessageContent from '@/components/RichMessageContent.vue'
@@ -134,7 +135,7 @@ const messageUsage = (message: Message) => ({
 })
 const messageElapsed = (message: Message) => {
   if (message.Status === 'streaming') {
-    const started = message.CreateTime ? new Date(message.CreateTime).getTime() : clock.value
+    const started = message.CreateTime ? parseApiTime(message.CreateTime).getTime() : clock.value
     return formatElapsedTime(Math.max(0, clock.value - started))
   }
   return message.TotalDurationMs != null ? formatElapsedTime(message.TotalDurationMs) : ''
@@ -251,14 +252,7 @@ const messageElapsed = (message: Message) => {
                 <Icon icon="lucide:thumbs-down" />
               </button>
             </template>
-            <time>{{
-              message.CreateTime
-                ? new Date(message.CreateTime).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : ''
-            }}</time>
+            <time>{{ formatMessageTime(message.CreateTime) }}</time>
             <button
               v-if="message.Status === 'error' || message.Status === 'stopped'"
               aria-label="重试"

@@ -1,5 +1,6 @@
 /** 历史会话纯数据处理：按本地日历分组、合并分页，不修改输入数组。 */
 import type { Conversation } from '@/types/ai'
+import { parseApiTime } from './apiTime'
 
 /** 侧栏固定分组键，与显示文案分离。 */
 export type ConversationHistoryGroupKey = 'recent' | 'seven-days' | 'thirty-days' | 'older'
@@ -33,7 +34,7 @@ const shiftLocalDays = (value: Date, days: number) => {
 const conversationTimestamp = (conversation: Conversation) => {
   const value = conversation.UpdateTime || conversation.CreateTime
   if (!value) return undefined
-  const timestamp = new Date(value).getTime()
+  const timestamp = parseApiTime(value).getTime()
   return Number.isFinite(timestamp) ? timestamp : undefined
 }
 

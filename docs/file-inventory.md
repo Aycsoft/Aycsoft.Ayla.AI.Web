@@ -2,7 +2,7 @@
 
 由 `node scripts/check-files.mjs --write` 生成。覆盖所有 Git 已跟踪及未忽略的新文件；排除依赖、构建与本地审查产物。职责取自手写文件说明，清单存在不等于业务验收完成。
 
-共 170 个文件。新增/删除文件或修改职责说明后重新生成；人工审查标准见 [代码规范](coding-standards.md)。
+共 172 个文件。新增/删除文件或修改职责说明后重新生成；人工审查标准见 [代码规范](coding-standards.md)。
 
 | 文件                                               | 职责 / 资源用途                                                                          | 验收方式                                             |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -127,6 +127,8 @@
 | `src/styles/workspace.css`                         | 工作台视觉变量、导航、输入区、模型选择与创作入口。                                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/templates.test.ts`                            | 全部 Vue 页面与组件模板编译回归；类型检查不能替代事件表达式的真实模板编译。              | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/types/ai.ts`                                  | 前后端共享传输类型；PascalCase 名称遵循现有 JSON 契约，不在页面层随意改名。              | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/apiTime.test.ts`                        | 时间协议回归：UTC 旧值、显式时区和跨本地午夜的会话分组。                                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/apiTime.ts`                             | API 时间统一解析：历史 MySQL UTC 值可能没有时区，显式偏移和 Z 保持原义。                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/backendResource.test.ts`                | 后端文件地址回归：验证下载参数兼容、链接优先级及危险/物理路径拒绝。                      | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/backendResource.ts`                     | 后端资源链接适配及带会话下载；不接受本地文件系统路径。                                   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/conversationHistory.test.ts`            | 历史列表回归：使用固定本地日历测试分组边界，并验证分页重叠更新与顺序。                   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |

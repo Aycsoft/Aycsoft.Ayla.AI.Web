@@ -14,10 +14,10 @@ describe('conversation history', () => {
   it('groups real conversation timestamps by local calendar boundaries', () => {
     const groups = groupConversationsByAge(
       [
-        conversation('today', '2026-08-28T08:00:00'),
-        conversation('seven', '2026-08-22T12:00:00'),
-        conversation('thirty', '2026-07-30T12:00:00'),
-        conversation('older', '2026-07-29T23:59:59'),
+        conversation('today', new Date(2026, 7, 28, 8).toISOString()),
+        conversation('seven', new Date(2026, 7, 22, 12).toISOString()),
+        conversation('thirty', new Date(2026, 6, 30, 12).toISOString()),
+        conversation('older', new Date(2026, 6, 29, 23, 59, 59).toISOString()),
         conversation('missing'),
       ],
       new Date(2026, 7, 28, 12),
