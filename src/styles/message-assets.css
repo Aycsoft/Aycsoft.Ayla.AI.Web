@@ -314,3 +314,13 @@
   flex: 0 0 auto;
   white-space: nowrap;
 }
+
+/* 按浮动输入区真实占用留白，长草稿/附件/恢复说明不能遮住滚到底的末条消息。 */
+.chat-page .chat-center:not(.empty) > .message-list {
+  padding-bottom: max(174px, var(--composer-clearance, 0px));
+}
+@media (max-width: 599px) {
+  .chat-page .chat-center:not(.empty) > .message-list {
+    padding-bottom: max(155px, var(--composer-clearance, 0px));
+  }
+}

@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 import BrandLogo from '@/components/BrandLogo.vue'
 import type { Attachment } from '@/types/ai'
+import { needsMediaJobReview } from '@/utils/messagePresentation'
 
 const props = defineProps<{ seededPrompt?: string }>()
 const emit = defineEmits<{ sent: [] }>()
@@ -131,10 +132,7 @@ const submit = async () => {
 // 与 Store 的重试门禁一致：持久视频任务只核对原任务，不能暗示再次提交收费。
 const retryNeedsJobReview = computed(() => {
   const target = [...chat.messages].reverse().find((message) => message.Role === 'assistant')
-  return Boolean(
-    target?.ToolSteps?.some((step) => step.JobId) ||
-    target?.ErrorCode === 'MEDIA_SUBMISSION_UNKNOWN',
-  )
+  return needsMediaJobReview(target)
 })
 const retryLast = async () => {
   await chat.retry()

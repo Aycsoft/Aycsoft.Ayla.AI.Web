@@ -10,10 +10,13 @@ import EmptyWorkspace from '@/components/EmptyWorkspace.vue'
 import MessageList from '@/components/MessageList.vue'
 import ChatComposer from '@/components/ChatComposer.vue'
 import MediaJobsPanel from '@/components/MediaJobsPanel.vue'
+import { useComposerClearance } from '@/composables/useComposerClearance'
 import TracePanel from '@/components/TracePanel.vue'
 import ArtifactWorkspace from '@/components/ArtifactWorkspace.vue'
 import CodePreviewWorkspace from '@/components/CodePreviewWorkspace.vue'
 
+const center = ref<HTMLElement>()
+useComposerClearance(center)
 const chat = useChatStore()
 const route = useRoute()
 const auth = useAuthStore()
@@ -62,7 +65,10 @@ const seed = (value: string) => {
 <template>
   <div class="chat-page">
     <ConversationSidebar :open="leftOpen" @close="leftOpen = false" />
-    <section :class="['chat-center', { empty: !chat.loading && !chat.messages.length }]">
+    <section
+      ref="center"
+      :class="['chat-center', { empty: !chat.loading && !chat.messages.length }]"
+    >
       <header class="chat-header">
         <button class="icon-button sidebar-toggle" aria-label="打开导航" @click="leftOpen = true">
           <Icon icon="lucide:panel-left" />

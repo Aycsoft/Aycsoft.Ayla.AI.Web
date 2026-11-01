@@ -126,7 +126,7 @@ it('点击旧失败只重发它之前的用户问题，并保留全部旧消息'
   expect(chat.messages).toHaveLength(6)
 })
 
-it('已有视频Job的失败不能通过通用重试再次提交', async () => {
+it.each(['job', 'unknown'] as const)('媒体 %s 不能通过通用重试再次提交', async (kind) => {
   const chat = readyStore()
   chat.messages = [
     { Id: 'u1', Role: 'user', Content: '合成视频' },
@@ -135,7 +135,8 @@ it('已有视频Job的失败不能通过通用重试再次提交', async () => {
       Role: 'assistant',
       Content: '受理待核对',
       Status: 'error',
-      ToolSteps: [{ ToolCode: 'video_generate', JobId: 'a'.repeat(32) }],
+      ToolSteps: kind === 'job' ? [{ ToolCode: 'video_generate', JobId: 'a'.repeat(32) }] : [],
+      ErrorCode: kind === 'unknown' ? 'MEDIA_SUBMISSION_UNKNOWN' : undefined,
     },
   ]
   await chat.retry('a1')

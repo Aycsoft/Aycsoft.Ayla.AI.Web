@@ -46,3 +46,38 @@ describe('citation dates', () => {
     )
   })
 })
+
+describe('历史媒体任务恢复入口', () => {
+  it.each(['error', 'stopped'] as const)(
+    '%s 的已有任务只能核对，主动停止也不暗示取消计费',
+    async (Status) => {
+      const { needsMediaJobReview, messageResponseNotice } = await import('./messagePresentation')
+      const message = {
+        Id: 'local-job',
+        Role: 'assistant' as const,
+        Content: '已保留正文',
+        Status,
+        ToolSteps: [{ ToolCode: 'video_generate', JobId: 'synthetic-job' }],
+      }
+      expect(needsMediaJobReview(message)).toBe(true)
+      expect(messageResponseNotice(message)?.detail).toContain('核对原任务')
+      expect(messageResponseNotice(message)?.detail).toContain('不代表停止计费')
+    },
+  )
+  it('没有任务ID但受理未知时仍禁止普通重试，普通失败和主动停止不误判', async () => {
+    const { needsMediaJobReview, messageResponseNotice } = await import('./messagePresentation')
+    const message = {
+      Id: 'local-error',
+      Role: 'assistant' as const,
+      Content: '',
+      Status: 'error' as const,
+    }
+    expect(needsMediaJobReview({ ...message, ErrorCode: 'MEDIA_SUBMISSION_UNKNOWN' })).toBe(true)
+    expect(
+      messageResponseNotice({ ...message, ErrorCode: 'MEDIA_SUBMISSION_UNKNOWN' })?.title,
+    ).toBe('视频任务状态待核对')
+    expect(needsMediaJobReview(message)).toBe(false)
+    expect(messageResponseNotice({ ...message, Status: 'stopped' })).toBeNull()
+    expect(needsMediaJobReview(undefined)).toBe(false)
+  })
+})

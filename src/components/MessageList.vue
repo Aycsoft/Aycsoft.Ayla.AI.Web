@@ -28,6 +28,7 @@ import {
   citationTitle,
   citationUrl,
   messageResponseNotice,
+  needsMediaJobReview,
 } from '@/utils/messagePresentation'
 import { formatElapsedTime } from '@/utils/elapsedTime'
 import { getSuggestedQuestions } from '@/utils/suggestedQuestions'
@@ -314,7 +315,11 @@ const messageElapsed = (message: Message) => {
             </template>
             <time>{{ formatMessageTime(message.CreateTime) }}</time>
             <button
-              v-if="message.Status === 'error' || message.Status === 'stopped'"
+              v-if="
+                (message.Status === 'error' || message.Status === 'stopped') &&
+                !needsMediaJobReview(message)
+              "
+              :disabled="chat.preparing || chat.streaming"
               aria-label="重试"
               title="重试"
               @click="chat.retry(message.Id)"

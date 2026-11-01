@@ -88,9 +88,19 @@ export function citationDateLabel(source: Citation): string {
   return `${published ? `发布 ${published}` : '发布日期未知'}${retrieved ? ` · 检索 ${retrieved}（北京时间）` : ''}`
 }
 
+/** 已有任务或受理结果未知时，只能核对原任务，历史入口与输入区共用同一展示判断。 */
+export function needsMediaJobReview(message?: Message): boolean {
+  return Boolean(
+    message?.ErrorCode === 'MEDIA_SUBMISSION_UNKNOWN' ||
+    message?.ToolSteps?.some((step) => step.JobId),
+  )
+}
+
 /** 正文和终态独立展示；优先服务端终态，不能把部分内容或已生成文件当作整轮完成。 */
 export function messageResponseNotice(message: Message) {
-  if (message.Role !== 'assistant' || message.Status === 'stopped') return null
+  if (message.Role !== 'assistant') return null
+  const existingJob = needsMediaJobReview(message)
+  if (message.Status === 'stopped' && !existingJob) return null
   const status = (
     message.Status === 'error' ? 'error' : message.GenerationStatus || message.Status || ''
   ).toLowerCase()
@@ -98,10 +108,7 @@ export function messageResponseNotice(message: Message) {
   const failed = ['error', 'failed', 'tool_failed', 'document_evidence_unavailable'].includes(
     status,
   )
-  if (!incomplete && !failed) return null
-  const existingJob =
-    message.ErrorCode === 'MEDIA_SUBMISSION_UNKNOWN' ||
-    message.ToolSteps?.some((step) => step.JobId)
+  if (!incomplete && !failed && !(message.Status === 'stopped' && existingJob)) return null
   const detail = message.ErrorMessage?.trim()
   return {
     title: existingJob ? '视频任务状态待核对' : incomplete ? '回答尚未完成' : '本次请求未完成',
