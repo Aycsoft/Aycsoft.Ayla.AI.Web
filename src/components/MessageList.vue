@@ -18,9 +18,23 @@ import TokenUsagePanel from '@/components/TokenUsagePanel.vue'
 import FeedbackDialog from '@/components/FeedbackDialog.vue'
 import GenerationProgressCard from '@/components/GenerationProgressCard.vue'
 import SourceFavicon from '@/components/SourceFavicon.vue'
+import ProductObservationSummary from '@/components/ProductObservationSummary.vue'
+import BusinessResults from '@/components/BusinessResults.vue'
+import PendingAgentInput from '@/components/PendingAgentInput.vue'
 import type { Artifact, Message } from '@/types/ai'
-import { citationHost, citationTitle, citationUrl } from '@/utils/messagePresentation'
+import {
+  citationDateLabel,
+  citationHost,
+  citationTitle,
+  citationUrl,
+  messageResponseNotice,
+} from '@/utils/messagePresentation'
 import { formatElapsedTime } from '@/utils/elapsedTime'
+import { getSuggestedQuestions } from '@/utils/suggestedQuestions'
+import { mergeArtifacts } from '@/utils/messageAttachments'
+
+// 仅向父级发出填入草稿事件，不在消息组件内发送请求或审批。
+const emit = defineEmits<{ suggest: [question: string] }>()
 
 const chat = useChatStore()
 const container = ref<HTMLElement>()
@@ -100,10 +114,7 @@ const submitFeedback = async (value: {
 }
 // 历史消息和 AgentRun 可能重复返回同一资产，按服务端 ID 合并显示。
 const artifacts = (message: Message): Artifact[] =>
-  [...(message.Artifacts || []), ...(message.AgentRun?.Artifacts || [])].filter(
-    (item, index, all) =>
-      all.findIndex((candidate) => candidate.ArtifactId === item.ArtifactId) === index,
-  )
+  mergeArtifacts([...(message.Artifacts || []), ...(message.AgentRun?.Artifacts || [])])
 const citations = (message: Message) =>
   [...(message.Citations || []), ...(message.WebSources || [])].filter((item, index, all) => {
     const key = citationUrl(item) || `${citationTitle(item)}:${item.DocumentId || ''}`
@@ -123,7 +134,10 @@ const artifactProgress = (artifact: Artifact) =>
         .toLowerCase()
         .includes(artifact.Type.toLowerCase().split('.').at(-1) || ''),
     )?.Progress
-const activeProgress = computed(() => Math.max(0, ...chat.traces.map((step) => step.Progress || 0)))
+// 仅展示当前运行步骤返回的进度，不继承前一步已完成的100%。
+const activeProgress = computed(
+  () => [...chat.traces].reverse().find((step) => step.Status === 'running')?.Progress,
+)
 const activeStage = computed(() => {
   const step = [...chat.traces].reverse().find((item) => item.Status === 'running')
   return step?.Detail || step?.Title
@@ -150,7 +164,12 @@ const messageElapsed = (message: Message) => {
           <div v-if="message.Content" class="user-message-bubble">
             <RichMessageContent :content="message.Content" />
           </div>
-          <MessageAttachmentList v-if="message.Attachments?.length" :files="message.Attachments" />
+          <MessageAttachmentList
+            v-if="message.Attachments?.length"
+            :reusable="message.Role === 'user'"
+            :files="message.Attachments"
+            :conversation-id="message.ConversationId || chat.currentId"
+          />
         </div>
         <template v-else>
           <div v-if="message.Id === latestAssistantId && chat.traces.length">
@@ -172,6 +191,12 @@ const messageElapsed = (message: Message) => {
           <div v-if="message.Content" class="message-content">
             <RichMessageContent :content="message.Content" />
           </div>
+          <BusinessResults :message="message" />
+          <PendingAgentInput
+            :message="message"
+            :busy="chat.streaming"
+            @suggest="emit('suggest', $event)"
+          />
           <div
             v-if="
               (message.Id === latestAssistantId &&
@@ -200,7 +225,11 @@ const messageElapsed = (message: Message) => {
               />
             </div>
           </div>
-          <MessageAttachmentList v-if="message.Attachments?.length" :files="message.Attachments" />
+          <MessageAttachmentList
+            v-if="message.Attachments?.length"
+            :files="message.Attachments"
+            :conversation-id="message.ConversationId || chat.currentId"
+          />
           <div v-if="citations(message).length" class="citations">
             <details>
               <summary>
@@ -221,7 +250,11 @@ const messageElapsed = (message: Message) => {
                         citationTitle(source)
                       }}</span></span
                     ><small>{{ citationHost(source) || '打开来源' }}</small
-                    ><Icon class="citation-external" icon="lucide:arrow-up-right" /></a
+                    ><Icon class="citation-external" icon="lucide:arrow-up-right" /><small
+                      v-if="citationDateLabel(source)"
+                      class="citation-date"
+                      >{{ citationDateLabel(source) }}</small
+                    ></a
                   ><span v-else
                     ><span class="citation-primary"
                       ><span class="source-favicon"><Icon icon="lucide:file-text" /></span
@@ -230,12 +263,39 @@ const messageElapsed = (message: Message) => {
                       source.Section || (source.Page ? `第 ${source.Page} 页` : '授权业务来源')
                     }}</small></span
                   >
+                  <ProductObservationSummary
+                    :observation="source.ProductObservation"
+                    :source-url="citationUrl(source)"
+                  />
                 </li>
               </ol>
             </details>
           </div>
-          <div v-if="message.ErrorMessage" class="inline-error">
-            <Icon icon="lucide:circle-alert" />{{ message.ErrorMessage }}
+          <div
+            v-if="messageResponseNotice(message)"
+            class="inline-error message-response-notice"
+            role="alert"
+          >
+            <Icon icon="lucide:circle-alert" />
+            <div>
+              <strong>{{ messageResponseNotice(message)?.title }}</strong>
+              <p>{{ messageResponseNotice(message)?.detail }}</p>
+            </div>
+          </div>
+          <div
+            v-if="getSuggestedQuestions(message).length"
+            class="suggested-questions"
+            aria-label="继续了解"
+          >
+            <button
+              v-for="question in getSuggestedQuestions(message)"
+              :key="question"
+              type="button"
+              :disabled="chat.streaming"
+              @click="emit('suggest', question)"
+            >
+              {{ question }} <span aria-hidden="true">↗</span>
+            </button>
           </div>
           <footer
             v-if="message.Content || message.Status === 'error' || message.Status === 'stopped'"
@@ -257,7 +317,7 @@ const messageElapsed = (message: Message) => {
               v-if="message.Status === 'error' || message.Status === 'stopped'"
               aria-label="重试"
               title="重试"
-              @click="chat.retry()"
+              @click="chat.retry(message.Id)"
             >
               <Icon icon="lucide:rotate-ccw" />
             </button>
@@ -287,3 +347,33 @@ const messageElapsed = (message: Message) => {
     />
   </div>
 </template>
+
+<style scoped>
+.suggested-questions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 14px;
+}
+.suggested-questions button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 4px 0;
+  color: var(--mm-secondary);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+.suggested-questions button:hover,
+.suggested-questions button:focus-visible {
+  color: var(--mm-text);
+}
+.suggested-questions button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+</style>

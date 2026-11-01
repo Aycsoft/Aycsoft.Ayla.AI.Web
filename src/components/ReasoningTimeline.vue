@@ -9,12 +9,8 @@ import { useChatStore } from '@/stores/chat'
 import { sanitizeReasoningText } from '@/utils/reasoningSafety'
 
 const chat = useChatStore()
-const elapsed = computed(() => Math.max(0, ...chat.traces.map((x) => x.ElapsedMs || 0)))
-const seconds = computed(() => (elapsed.value ? Math.max(1, Math.round(elapsed.value / 1000)) : 0))
 const thinking = computed(() => chat.traces.length)
-const summary = computed(() =>
-  chat.streaming ? '执行中' : seconds.value ? `共执行 ${seconds.value} 秒` : '执行完成',
-)
+const summary = computed(() => (chat.streaming ? '执行中' : `执行记录 · ${thinking.value} 个步骤`))
 const stepIcon = (status: string) =>
   status === 'completed'
     ? 'lucide:check'
@@ -29,8 +25,8 @@ const stepIcon = (status: string) =>
   <details class="reasoning-timeline" :open="chat.streaming">
     <summary>{{ summary }}<Icon icon="lucide:chevron-down" /></summary>
     <div class="reasoning-divider" />
-    <div class="reasoning-count">思考 {{ thinking }} 次</div>
-    <div class="reasoning-title"><Icon icon="lucide:brain" />思考过程</div>
+    <div class="reasoning-count">{{ thinking }} 个执行步骤</div>
+    <div class="reasoning-title"><Icon icon="lucide:brain" />执行过程</div>
     <div class="reasoning-steps">
       <div v-for="step in chat.traces" :key="step.StepId" :class="['reasoning-step', step.Status]">
         <Icon :icon="stepIcon(step.Status)" /><span

@@ -9,6 +9,7 @@ import ConversationSidebar from '@/components/ConversationSidebar.vue'
 import EmptyWorkspace from '@/components/EmptyWorkspace.vue'
 import MessageList from '@/components/MessageList.vue'
 import ChatComposer from '@/components/ChatComposer.vue'
+import MediaJobsPanel from '@/components/MediaJobsPanel.vue'
 import TracePanel from '@/components/TracePanel.vue'
 import ArtifactWorkspace from '@/components/ArtifactWorkspace.vue'
 import CodePreviewWorkspace from '@/components/CodePreviewWorkspace.vue'
@@ -22,7 +23,6 @@ const prompt = ref('')
 const artifactOpen = ref(false)
 const selectedArtifactId = ref('')
 const codePreview = ref({ open: false, language: 'html', srcdoc: '' })
-const creationMode = ref<'chat' | 'image' | 'video'>('chat')
 // 全局预览事件在挂载时注册，并在卸载时成对移除，防止重复打开面板。
 onMounted(async () => {
   window.addEventListener('ayla:artifact-open', openArtifact as EventListener)
@@ -70,6 +70,13 @@ const seed = (value: string) => {
         <div class="chat-title">
           <strong>{{ chat.current?.Title || '新任务' }}</strong>
         </div>
+        <MediaJobsPanel
+          :identity-key="
+            auth.session
+              ? `${auth.session.TenantId || ''}:${auth.session.AccountType || ''}:${auth.session.UserId || ''}`
+              : undefined
+          "
+        />
         <button
           v-if="chat.traces.length || chat.artifacts.length"
           class="icon-button progress-trigger"
@@ -98,13 +105,12 @@ const seed = (value: string) => {
       </div>
       <EmptyWorkspace
         v-else-if="!chat.messages.length"
-        :mode="creationMode"
         :message-count="chat.messages.length"
         @prompt="seed"
         @upload="seed('请分析我接下来上传的文件')"
       />
-      <MessageList v-else />
-      <ChatComposer :seeded-prompt="prompt" @mode-changed="creationMode = $event" />
+      <MessageList v-else @suggest="seed" />
+      <ChatComposer :seeded-prompt="prompt" />
     </section>
     <TracePanel :open="progressOpen" @toggle="progressOpen = !progressOpen" />
     <ArtifactWorkspace

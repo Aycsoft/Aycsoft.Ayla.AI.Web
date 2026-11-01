@@ -815,6 +815,8 @@
   .artifact-workspace {
     position: fixed;
     width: 100vw;
+    /* 桌面拖拽宽度由内联样式保存，窄屏仍须限制在可见视口内。 */
+    max-width: 100vw;
   }
   .artifact-workspace-body {
     grid-template-columns: 128px 1fr;
@@ -1054,4 +1056,21 @@
   .conversation-run-status.running svg {
     animation: none;
   }
+}
+
+/* 终态提示独立于正文与加载动画，窄屏长错误说明仍在消息列内换行。 */
+.message-response-notice {
+  align-items: flex-start;
+}
+.message-response-notice > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.message-response-notice > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.message-response-notice p {
+  margin: 3px 0 0;
+  color: var(--muted);
 }

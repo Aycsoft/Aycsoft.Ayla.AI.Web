@@ -1,6 +1,6 @@
 /** 工作区业务 API 门面；只负责协议映射，页面反馈和状态更新留给 store/调用方。 */
 import { apiUrl, mutationHeaders, query, request, ApiError } from './http'
-import { SseParser } from './sse'
+import { isTerminalSseEvent, SseParser } from './sse'
 import type {
   AISettings,
   AiModelDefinition,
@@ -294,7 +294,7 @@ export async function streamChat(
       (await response.text().catch(() => '')) || `AI 请求失败（${response.status}）`,
       response.status,
     )
-  await consumeSseResponse(response, onEvent)
+  await consumeSseResponse(response, onEvent, signal)
 }
 
 /** 公开聊天流保留独立请求头与凭据策略，只共享响应消费流程。 */
@@ -314,7 +314,7 @@ export async function streamPublicChat(
       (await response.text().catch(() => '')) || `AI 请求失败（${response.status}）`,
       response.status,
     )
-  await consumeSseResponse(response, onEvent)
+  await consumeSseResponse(response, onEvent, signal)
 }
 
 /**
@@ -324,19 +324,36 @@ export async function streamPublicChat(
 async function consumeSseResponse(
   response: Response,
   onEvent: (event: ParsedSseEvent) => void,
+  signal: AbortSignal,
 ): Promise<void> {
   if (!(response.headers.get('content-type') || '').includes('text/event-stream') || !response.body)
     throw new ApiError('服务端未返回 SSE 流', 502)
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   const parser = new SseParser()
+  let terminalReceived = false
+  const abortRead = () => void reader.cancel().catch(() => undefined)
+  signal.addEventListener('abort', abortRead, { once: true })
   try {
     while (true) {
+      signal.throwIfAborted()
       const { value, done } = await reader.read()
-      parser.push(decoder.decode(value, { stream: !done }), done).forEach(onEvent)
+      signal.throwIfAborted()
+      for (const event of parser.push(decoder.decode(value, { stream: !done }), done)) {
+        signal.throwIfAborted()
+        terminalReceived = isTerminalSseEvent(event) || terminalReceived
+        onEvent(event)
+      }
       if (done) break
     }
+    // 已收到正文仍可能是半截回复；保留它并提示回看历史，不自动重投收费任务。
+    if (!terminalReceived)
+      throw new ApiError(
+        '连接已结束，但未收到完成状态。已保留收到的内容，请查看历史确认结果；请勿重复提交生成任务。',
+        502,
+      )
   } finally {
+    signal.removeEventListener('abort', abortRead)
     reader.releaseLock()
   }
 }

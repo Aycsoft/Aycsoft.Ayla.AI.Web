@@ -1,6 +1,7 @@
 /** 历史消息与来源展示适配，不修改原始消息内容或引用记录。 */
-import type { Citation } from '@/types/ai'
+import type { Citation, Message } from '@/types/ai'
 import { isSafeMarkdownLink } from './safeMarkdown'
+import { parseApiTime } from './apiTime'
 
 const LEGACY_FOOTERS = [
   /(?:\r?\n){0,2}---(?:\r?\n)+内容由 AI 生成，重要信息请务必核查。作者备案：杨鹏 \/ Peng Yang \(Perry Yang\)\s*$/u,
@@ -63,5 +64,51 @@ export function citationIconUrl(value: string): string {
       : ''
   } catch {
     return ''
+  }
+}
+
+/** 发布日期与本次检索日期各自展示，不能拿抓取时间冒充来源发布时间。 */
+export function citationDateLabel(source: Citation): string {
+  if (!/^https?:\/\//i.test(citationUrl(source))) return ''
+  const record = source as Citation & Record<string, unknown>
+  const format = (value: unknown): string => {
+    if (typeof value !== 'string' || !value.trim()) return ''
+    const date = parseApiTime(value)
+    return Number.isFinite(date.getTime())
+      ? date.toLocaleDateString('zh-CN', {
+          timeZone: 'Asia/Shanghai',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        })
+      : ''
+  }
+  const published = format(source.PublishedAt)
+  const retrieved = format(record.RetrievedAt)
+  return `${published ? `发布 ${published}` : '发布日期未知'}${retrieved ? ` · 检索 ${retrieved}（北京时间）` : ''}`
+}
+
+/** 正文和终态独立展示；优先服务端终态，不能把部分内容或已生成文件当作整轮完成。 */
+export function messageResponseNotice(message: Message) {
+  if (message.Role !== 'assistant' || message.Status === 'stopped') return null
+  const status = (
+    message.Status === 'error' ? 'error' : message.GenerationStatus || message.Status || ''
+  ).toLowerCase()
+  const incomplete = ['partial', 'incomplete'].includes(status)
+  const failed = ['error', 'failed', 'tool_failed', 'document_evidence_unavailable'].includes(
+    status,
+  )
+  if (!incomplete && !failed) return null
+  const existingJob =
+    message.ErrorCode === 'MEDIA_SUBMISSION_UNKNOWN' ||
+    message.ToolSteps?.some((step) => step.JobId)
+  const detail = message.ErrorMessage?.trim()
+  return {
+    title: existingJob ? '视频任务状态待核对' : incomplete ? '回答尚未完成' : '本次请求未完成',
+    detail: existingJob
+      ? [detail, '请打开“视频任务”核对原任务，勿重复提交；停止本地等待不代表停止计费。']
+          .filter(Boolean)
+          .join(' ')
+      : detail || '已保留收到的内容和产物，请查看原回复中的限制。',
   }
 }

@@ -1,6 +1,8 @@
 /** 会话状态编排：分页、选择、创建与流式请求生命周期；协议转换见 chatEvents。 */
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { mergePersistedBusinessMessage } from '@/utils/businessResults'
+import { computed, ref, watch } from 'vue'
+import { canReuseAttachment } from '@/utils/attachmentReuse'
 import { aiApi, streamChat, streamPublicChat } from '@/api/ai'
 import { resolveTerminalMessageStatus } from '@/api/sse'
 import { useAuthStore } from '@/stores/auth'
@@ -20,7 +22,6 @@ import type {
   Artifact,
   Assistant,
   Attachment,
-  ChatOptions,
   Conversation,
   Message,
   ParsedSseEvent,
@@ -36,11 +37,33 @@ export const useChatStore = defineStore('chat', () => {
   const assistants = ref<Assistant[]>([])
   const conversations = ref<Conversation[]>([])
   const currentId = ref('')
+  const draftAttachments = ref<Attachment[]>([])
+  // 草稿附件不能随切换会话泄漏；历史引用与新上传使用同一输入列表。
+  watch(
+    currentId,
+    () => {
+      draftAttachments.value = []
+    },
+    { flush: 'sync' },
+  )
+  function referenceAttachment(file: Attachment) {
+    if (streaming.value || preparing.value) return 'busy'
+    const original = messages.value
+      .filter((message) => message.Role === 'user')
+      .flatMap((message) => message.Attachments || [])
+      .find((item) => item.FileId === file.FileId)
+    if (!original || !canReuseAttachment(original)) return 'invalid'
+    if (draftAttachments.value.some((item) => item.FileId === original.FileId)) return 'duplicate'
+    if (draftAttachments.value.length >= 4) return 'limit'
+    draftAttachments.value.push({ ...original })
+    return 'added'
+  }
   const messages = ref<Message[]>([])
   const traces = ref<TraceStep[]>([])
   const artifacts = ref<Artifact[]>([])
   const loading = ref(false)
   const streaming = ref(false)
+  const preparing = ref(false)
   const generationId = ref('')
   const lastError = ref('')
   const aborter = ref<AbortController>()
@@ -49,8 +72,14 @@ export const useChatStore = defineStore('chat', () => {
     () => assistants.value.find((x) => x.Id === current.value?.AssistantId) || assistants.value[0],
   )
   const loginRequired = ref(false)
-  const lastOptions = ref<ChatOptions>({ Mode: 'auto' })
-  const activeGenerationKind = ref<'image' | 'video' | 'file' | ''>('')
+  // 媒体进度由真实运行工具派生，不能根据输入关键词或前端模式伪造生成状态。
+  const activeGenerationKind = computed<'image' | 'video' | 'file' | ''>(() => {
+    const active = [...traces.value].reverse().find((step) => step.Status === 'running')
+    if (active?.ToolCode === 'image_generate') return 'image'
+    if (active?.ToolCode === 'video_generate') return 'video'
+    if (active?.ToolCode === 'document_generate') return 'file'
+    return ''
+  })
   // 列表运行状态独立于当前消息，供侧栏展示后台持久化状态与本地生成状态。
   const conversationStatuses = ref<Record<string, ConversationRunStatus>>({})
   const conversationPage = ref(0)
@@ -122,22 +151,41 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  /** 切换会话并从最后一条助手消息恢复轨迹；生成期间禁止切换。 */
+  let selectionVersion = 0
+
+  /** 对外选择入口在准备提交时同样锁定，防止请求绑定到另一会话。 */
   async function select(id: string) {
-    if (streaming.value) return
+    if (streaming.value || preparing.value) return
+    await loadSelectedConversation(id)
+  }
+
+  /** 先移除旧会话展示；拒绝或晚到响应不能把旧正文挂在新会话标题下。 */
+  async function loadSelectedConversation(id: string) {
+    const version = ++selectionVersion
     currentId.value = id
+    messages.value = []
     traces.value = []
     artifacts.value = []
     lastError.value = ''
-    const response = await aiApi.messages(id)
-    messages.value = Array.isArray(response) ? response : response.Items
-    const selectedConversation = conversations.value.find((item) => item.Id === id)
-    syncConversationMessageState(selectedConversation, messages.value.length)
-    const latest = [...messages.value].reverse().find((x) => x.Role === 'assistant')
-    traces.value = latest?.AgentRun?.Steps?.length
-      ? latest.AgentRun.Steps
-      : normalizePersistedTraceSteps(latest?.ToolSteps)
-    artifacts.value = collectWorkspaceArtifacts(messages.value)
+    loading.value = true
+    try {
+      const response = await aiApi.messages(id)
+      if (version !== selectionVersion || currentId.value !== id) return
+      messages.value = Array.isArray(response) ? response : response.Items
+      const selectedConversation = conversations.value.find((item) => item.Id === id)
+      syncConversationMessageState(selectedConversation, messages.value.length)
+      const latest = [...messages.value].reverse().find((x) => x.Role === 'assistant')
+      traces.value = latest?.AgentRun?.Steps?.length
+        ? latest.AgentRun.Steps
+        : normalizePersistedTraceSteps(latest?.ToolSteps)
+      artifacts.value = collectWorkspaceArtifacts(messages.value)
+    } catch (error) {
+      if (version !== selectionVersion || currentId.value !== id) return
+      lastError.value = (error as Error).message
+      throw error
+    } finally {
+      if (version === selectionVersion) loading.value = false
+    }
   }
 
   /** 生成后回读服务端持久化结果，补全消息 Id、轨迹和产物。 */
@@ -146,7 +194,12 @@ export const useChatStore = defineStore('chat', () => {
     const response = await aiApi.messages(currentId.value)
     const persisted = Array.isArray(response) ? response : response.Items
     if (!persisted.length) return
-    messages.value = persisted
+    messages.value = persisted.map((message) =>
+      mergePersistedBusinessMessage(
+        message,
+        messages.value.find((live) => live.Id === message.Id),
+      ),
+    )
     syncConversationMessageState(current.value, persisted.length)
     const latest = [...persisted].reverse().find((item) => item.Role === 'assistant')
     if (latest?.AgentRun?.Steps?.length) traces.value = latest.AgentRun.Steps
@@ -174,7 +227,7 @@ export const useChatStore = defineStore('chat', () => {
       (id) => aiApi.messages(id),
     )
     if (reusable) {
-      await select(reusable.Id)
+      await loadSelectedConversation(reusable.Id)
       return reusable
     }
     const conversation = await aiApi.createConversation({
@@ -213,16 +266,19 @@ export const useChatStore = defineStore('chat', () => {
    * 发送流程：校验权限 → 准备消息/占位轨迹 → 消费 SSE → 回读持久化 → 统一收尾。
    * 本地消息先进入响应式数组，再使用其中的代理对象接收增量，保证界面实时更新。
    */
-  async function send(text: string, attachments: Attachment[], options: ChatOptions) {
-    if (streaming.value || !text.trim()) return
+  async function send(text: string, attachments: Attachment[]) {
+    if (preparing.value || streaming.value || !text.trim()) return
+    preparing.value = true
+    try {
+      await sendRequest(text, attachments)
+    } finally {
+      preparing.value = false
+    }
+  }
+
+  /** 创建会话至流结束共用同一提交锁，防止首轮双击或重试并发重复执行。 */
+  async function sendRequest(text: string, attachments: Attachment[]) {
     loginRequired.value = false
-    lastOptions.value = { ...options }
-    activeGenerationKind.value =
-      options.ImageGeneration || options.Mode === 'imageGeneration'
-        ? 'image'
-        : options.VideoGeneration || options.Mode === 'videoGeneration'
-          ? 'video'
-          : ''
     const anonymous = !useAuthStore().session
     if (anonymous && attachments.length) {
       loginRequired.value = true
@@ -278,12 +334,7 @@ export const useChatStore = defineStore('chat', () => {
         }
         applyEvent(event, answer)
       }
-      if (anonymous)
-        await streamPublicChat(
-          { Message: text.trim(), InternalModelAlias: options.InternalModelAlias },
-          aborter.value.signal,
-          onEvent,
-        )
+      if (anonymous) await streamPublicChat({ Message: text.trim() }, aborter.value.signal, onEvent)
       else
         await streamChat(
           {
@@ -295,12 +346,15 @@ export const useChatStore = defineStore('chat', () => {
               Title: document.title,
               Attachments: attachments,
             },
-            Options: options,
           },
           aborter.value.signal,
           onEvent,
         )
-      answer.Status = resolveTerminalMessageStatus(answer.Status, answer.Content)
+      answer.Status = resolveTerminalMessageStatus(
+        answer.Status,
+        answer.Content,
+        Boolean(answer.ToolResults?.length || answer.ToolResult || answer.Artifacts?.length),
+      )
       answer.TotalDurationMs ??= Math.max(0, Date.now() - startedAt)
       if (answer.Status === 'error' && !answer.ErrorMessage) {
         answer.ErrorMessage =
@@ -331,14 +385,20 @@ export const useChatStore = defineStore('chat', () => {
       )
       streaming.value = false
       aborter.value = undefined
-      activeGenerationKind.value = ''
-      if (!anonymous)
+      if (
+        !anonymous &&
+        ['awaiting_clarification', 'awaiting_approval'].includes(answer.Status || '')
+      )
+        delete conversationStatuses.value[currentId.value]
+      else if (!anonymous)
         conversationStatuses.value[currentId.value] =
-          answer.Status === 'error'
-            ? 'failed'
-            : answer.Status === 'stopped'
-              ? 'stopped'
-              : 'succeeded'
+          answer.Status === 'partial'
+            ? 'partial'
+            : answer.Status === 'error'
+              ? 'failed'
+              : answer.Status === 'stopped'
+                ? 'stopped'
+                : 'succeeded'
     }
   }
 
@@ -360,16 +420,34 @@ export const useChatStore = defineStore('chat', () => {
     if (activeGenerationId) void aiApi.stop(activeGenerationId).catch(() => undefined)
   }
 
-  /** 移除最近一轮本地消息后，使用原附件和选项重新发送。 */
-  async function retry() {
-    const lastUser = [...messages.value].reverse().find((x) => x.Role === 'user')
+  /** 重试对应被点击的助手消息，保留原历史；持久媒体任务必须先核对原任务。 */
+  async function retry(messageId?: string) {
+    if (preparing.value || streaming.value) return
+    const index = messageId
+      ? messages.value.findIndex((item) => item.Id === messageId && item.Role === 'assistant')
+      : messages.value.reduce((last, item, i) => (item.Role === 'assistant' ? i : last), -1)
+    if (index < 0) return
+    const target = messages.value[index]!
+    if (
+      target.ToolSteps?.some((step) => step.JobId) ||
+      target.ErrorCode === 'MEDIA_SUBMISSION_UNKNOWN'
+    ) {
+      lastError.value =
+        '该回复关联已有视频任务，请打开“视频任务”核对同一任务；停止本地等待不代表取消供应商任务或停止计费。'
+      return
+    }
+    const lastUser = messages.value
+      .slice(0, index)
+      .reverse()
+      .find((x) => x.Role === 'user')
     if (!lastUser) return
-    if (messages.value.at(-1)?.Role === 'assistant') messages.value.pop()
-    messages.value.pop()
-    await send(lastUser.Content, lastUser.Attachments || [], { ...lastOptions.value })
+    // 重试是新的用户请求，原失败和已产生产物必须保留，不能先从当前历史移除。
+    await send(lastUser.Content, lastUser.Attachments || [])
   }
 
   return {
+    draftAttachments,
+    referenceAttachment,
     assistants,
     conversations,
     conversationStatuses,
@@ -381,6 +459,7 @@ export const useChatStore = defineStore('chat', () => {
     artifacts,
     loading,
     streaming,
+    preparing,
     lastError,
     loginRequired,
     activeGenerationKind,

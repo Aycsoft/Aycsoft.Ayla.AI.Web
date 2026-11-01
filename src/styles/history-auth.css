@@ -108,6 +108,8 @@
 }
 .artifact-workspace:not(.open),
 .code-preview-workspace:not(.open) {
+  /* 关闭的侧栏不能因屏外位移继续撑宽页面滚动范围。 */
+  display: none;
   visibility: hidden;
   pointer-events: none;
 }
@@ -373,4 +375,14 @@
   border-radius: 10px;
   background: var(--surface);
   color: var(--text);
+}
+
+/* 来源日期单独换行，窄屏不挤占标题，也不把检索日期当发布日期。 */
+.citations li small.citation-date {
+  font-size: 11px;
+  line-height: 1.5;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }

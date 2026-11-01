@@ -127,3 +127,108 @@ describe('normalizeMessageResponse', () => {
     expect(artifacts[1].ArtifactId).toBe('output-1')
   })
 })
+
+it('将Portal继承的同ID保护附件映射到SSO网关而非匿名文件地址', () => {
+  const [message] = normalizeMessageResponse([
+    {
+      Id: 'm',
+      Role: 'user',
+      Content: '图',
+      Attachments: [
+        {
+          FileId: 'image-1',
+          FileName: 'photo.png',
+          PreviewUrl: '/api/AI/Chat/Attachments/image-1',
+          FileUrl: '/api/AI/Chat/Attachments/image-1?download=1',
+        },
+      ],
+    },
+  ])
+  expect(message.Attachments?.[0]).toMatchObject({
+    ContentUrl: '/api/sso/attachments/image-1',
+    DownloadUrl: '/api/sso/attachments/image-1?download=true',
+  })
+})
+
+it('不改写不一致FileId、任意外部地址和其他已提供的资源协议', () => {
+  for (const url of [
+    '/api/AI/Chat/Attachments/another-file',
+    'https://external.example/photo.png',
+    '/api/artifacts/image-1',
+  ]) {
+    const [message] = normalizeMessageResponse([
+      {
+        Id: 'm',
+        Role: 'user',
+        Content: '图',
+        Attachments: [
+          {
+            FileId: 'image-1',
+            FileName: 'photo.png',
+            ContentUrl: url,
+            DownloadUrl: url,
+          },
+        ],
+      },
+    ])
+    expect(message.Attachments?.[0].ContentUrl).toBe(url)
+    expect(message.Attachments?.[0].DownloadUrl).toBe(url)
+  }
+})
+
+describe('历史生成状态恢复', () => {
+  it.each(['failed', 'tool_failed', 'document_evidence_unavailable'])(
+    '只有GenerationStatus=%s的失败也显示错误且不丢原文',
+    (GenerationStatus) => {
+      const original: Message = {
+        Id: 'synthetic',
+        Role: 'assistant',
+        Content: '具体失败原因',
+        GenerationStatus,
+        ErrorCode: 'SAFE_FAILURE',
+        SuggestedQuestions: ['不应显示'],
+      }
+      const [message] = normalizeMessageResponse([original])
+      expect(message.Status).toBe('error')
+      expect(message.ErrorMessage).toContain('未完成')
+      expect(message.Content).toBe(original.Content)
+      expect(message.ErrorCode).toBe('SAFE_FAILURE')
+      expect(message.SuggestedQuestions).toEqual([])
+      expect(original.Status).toBeUndefined()
+    },
+  )
+  it('partial仍为部分结果，保留实际产物和原始错误码', () => {
+    const Artifacts = [
+      {
+        ArtifactId: 'real-output',
+        Type: 'image/png',
+        FileName: 'synthetic.png',
+        Status: 'completed',
+      },
+    ]
+    const [message] = normalizeMessageResponse([
+      {
+        Id: 'm',
+        Role: 'assistant',
+        Content: '部分结果',
+        GenerationStatus: 'partial',
+        ErrorCode: 'INCOMPLETE',
+        Artifacts,
+      },
+    ])
+    expect(message.Status).toBe('partial')
+    expect(message.Artifacts).toBe(Artifacts)
+    expect(message.ErrorCode).toBe('INCOMPLETE')
+  })
+  it('取消与完成各自保留，未知状态不猜成功', () => {
+    const rows = normalizeMessageResponse(
+      ['cancelled', 'tool_completed', 'new_unknown_status'].map((GenerationStatus) => ({
+        Id: GenerationStatus,
+        Role: 'assistant',
+        Content: '',
+        GenerationStatus,
+      })),
+    )
+    expect(rows.map((m) => m.Status)).toEqual(['stopped', 'completed', undefined])
+  })
+})

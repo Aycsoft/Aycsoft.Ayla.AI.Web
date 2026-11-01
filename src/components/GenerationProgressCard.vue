@@ -5,20 +5,14 @@
  */
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { artifactProgress } from '@/utils/artifactState'
 
 const props = defineProps<{ kind: 'image' | 'video' | 'file'; progress?: number; stage?: string }>()
 const label = computed(() =>
   props.kind === 'image' ? '图片' : props.kind === 'video' ? '视频' : '文件',
 )
-const estimate = computed(() =>
-  props.kind === 'image'
-    ? '通常约 30–90 秒'
-    : props.kind === 'video'
-      ? '通常约 2–10 分钟'
-      : '通常约 30 秒–3 分钟',
-)
-// 占位进度保持可见且不达 100%，不能冒充服务端完成通知。
-const safeProgress = computed(() => Math.max(6, Math.min(99, props.progress || 12)))
+// 无进度时只呈现真实阶段，等待服务端事件。
+const safeProgress = computed(() => artifactProgress(props.progress))
 </script>
 
 <template>
@@ -37,9 +31,11 @@ const safeProgress = computed(() => Math.max(6, Math.min(99, props.progress || 1
     <div class="generation-progress-copy">
       <strong>正在生成{{ label }}</strong
       ><span>{{ stage || '正在准备生成参数与计算资源' }}</span
-      ><small>{{ estimate }}，复杂任务或服务排队时可能更久</small>
+      ><small>以实际执行状态为准</small>
     </div>
-    <b>{{ safeProgress }}%</b>
-    <div class="generation-progress-track"><i :style="{ width: `${safeProgress}%` }" /></div>
+    <b v-if="safeProgress !== undefined">{{ safeProgress }}%</b>
+    <div v-if="safeProgress !== undefined" class="generation-progress-track">
+      <i :style="{ width: `${safeProgress}%` }" />
+    </div>
   </article>
 </template>

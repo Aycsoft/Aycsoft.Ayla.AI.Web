@@ -271,3 +271,18 @@
   background: var(--primary-soft);
   color: #83c5ff;
 }
+
+/* 窄屏抽屉不继承桌面48px折叠宽度；关闭时隐藏溢出的导航内容，避免遮挡会话。 */
+@media (max-width: 959px) {
+  .minimax-sidebar.collapsed {
+    width: min(82vw, 280px);
+    flex-basis: auto;
+  }
+  .minimax-sidebar:not(.open) {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .minimax-sidebar.collapsed .sidebar-collapse {
+    display: none !important;
+  }
+}

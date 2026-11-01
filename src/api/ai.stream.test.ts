@@ -41,8 +41,12 @@ describe('chat stream transport', () => {
   it('preserves separate credential and mutation-header contracts', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(createResponse([]))
-      .mockResolvedValueOnce(createResponse([]))
+      .mockResolvedValueOnce(
+        createResponse([new TextEncoder().encode('event: done\ndata: {}\n\n')]),
+      )
+      .mockResolvedValueOnce(
+        createResponse([new TextEncoder().encode('event: done\ndata: {}\n\n')]),
+      )
     vi.stubGlobal('fetch', fetchMock)
     const signal = new AbortController().signal
 

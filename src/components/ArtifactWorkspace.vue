@@ -13,6 +13,7 @@ import {
   loadBackendResource,
 } from '@/utils/backendResource'
 import { classifyOutput, isSuccessfulArtifact } from '@/utils/messageContent'
+import { artifactState } from '@/utils/artifactState'
 import CodeBlockCard from './CodeBlockCard.vue'
 import ResourceErrorCard from './ResourceErrorCard.vue'
 
@@ -41,9 +42,8 @@ const kind = computed(() =>
   active.value ? classifyOutput(active.value.Type, active.value.FileName) : 'file',
 )
 const url = computed(() => contentUrl(active.value))
-const progress = computed(() =>
-  Math.max(0, ...(props.traces || []).map((item) => item.Progress || 0)),
-)
+// 当前合同没有产物与步骤的稳定关联，不能把其他任务进度当成本文件进度。
+const state = computed(() => artifactState(active.value?.Status))
 const language = computed(() => active.value?.FileName.split('.').pop()?.toLowerCase() || 'text')
 const openArtifact = (artifact: Artifact) => {
   if (!tabs.value.includes(artifact.ArtifactId)) tabs.value.push(artifact.ArtifactId)
@@ -109,7 +109,7 @@ const retryResource = async () => {
   if (active.value && kind.value === 'code') await loadCode(active.value)
 }
 const download = async () => {
-  if (!active.value || downloading.value) return
+  if (!active.value || !isSuccessfulArtifact(active.value.Status) || downloading.value) return
   downloading.value = true
   resourceError.value = ''
   try {
@@ -152,7 +152,7 @@ onBeforeUnmount(() => {
   <aside
     :class="['artifact-workspace', { open }]"
     :style="{ width: `${panelWidth}px` }"
-    aria-label="Artifact 工作区"
+    aria-label="文件工作区"
   >
     <button
       class="workspace-resize-handle"
@@ -160,7 +160,7 @@ onBeforeUnmount(() => {
       @pointerdown.prevent="startResize"
     />
     <header>
-      <span><Icon icon="lucide:panels-top-left" /><strong>Artifact Workspace</strong></span
+      <span><Icon icon="lucide:panels-top-left" /><strong>文件工作区</strong></span
       ><button aria-label="关闭工作区" @click="emit('close')"><Icon icon="lucide:x" /></button>
     </header>
     <div class="artifact-workspace-body">
@@ -205,9 +205,9 @@ onBeforeUnmount(() => {
         </div>
         <div v-if="active" class="artifact-viewer">
           <div v-if="!isSuccessfulArtifact(active.Status)" class="workspace-progress">
-            <Icon icon="lucide:loader-circle" /><strong>{{ active.FileName }}</strong
-            ><span>{{ active.Status }} · {{ progress }}%</span>
-            <div><i :style="{ width: `${Math.max(4, progress)}%` }" /></div>
+            <Icon
+              :icon="state.pending ? 'lucide:loader-circle' : 'lucide:circle-alert'"
+            /><strong>{{ active.FileName }}</strong> ><span>{{ state.label }}</span>
           </div>
           <template v-else
             ><ResourceErrorCard
@@ -251,7 +251,10 @@ onBeforeUnmount(() => {
             </div></template
           >
           <button
-            v-if="active.DownloadUrl || active.ContentUrl || active.PreviewUrl"
+            v-if="
+              isSuccessfulArtifact(active.Status) &&
+              (active.DownloadUrl || active.ContentUrl || active.PreviewUrl)
+            "
             class="workspace-download"
             :disabled="downloading"
             @click="download"

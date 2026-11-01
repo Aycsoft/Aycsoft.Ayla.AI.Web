@@ -100,6 +100,9 @@ export function normalizePersistedTraceSteps(steps?: Array<Record<string, unknow
         value(source, 'StepId', 'stepId') ||
         `history-step-${index}`,
     ),
+    ...(typeof value(source, 'JobId', 'jobId') === 'string'
+      ? { JobId: String(value(source, 'JobId', 'jobId')) }
+      : {}),
     ToolCode: String(value(source, 'ToolCode', 'toolCode') || '') || undefined,
     Title: String(
       value(source, 'Message', 'message') || value(source, 'Title', 'title') || '执行步骤',

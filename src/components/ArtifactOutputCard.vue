@@ -8,29 +8,30 @@ import { Icon } from '@iconify/vue'
 import type { Artifact } from '@/types/ai'
 import { contentUrl } from '@/utils/backendResource'
 import { classifyOutput, isSuccessfulArtifact } from '@/utils/messageContent'
+import { artifactState, artifactProgress } from '@/utils/artifactState'
 import ResilientMediaPreview from './ResilientMediaPreview.vue'
 const props = defineProps<{ artifact: Artifact; progress?: number }>()
 const kind = computed(() => classifyOutput(props.artifact.Type, props.artifact.FileName))
 const url = computed(() => contentUrl(props.artifact))
 const finished = computed(() => isSuccessfulArtifact(props.artifact.Status))
-const failed = computed(() =>
-  ['failed', 'error', 'cancelled'].includes(props.artifact.Status.toLowerCase()),
-)
+const state = computed(() => artifactState(props.artifact.Status))
+const progressValue = computed(() => artifactProgress(props.progress))
 const openWorkspace = () =>
   window.dispatchEvent(new CustomEvent('ayla:artifact-open', { detail: props.artifact.ArtifactId }))
 </script>
 <template>
   <article class="artifact-output-card" @click="openWorkspace">
-    <div v-if="failed" class="artifact-progress failed">
-      <span><Icon icon="lucide:circle-alert" />生成未完成</span
-      ><strong>{{ artifact.Status }}</strong>
+    <div v-if="state.unavailable" class="artifact-progress failed">
+      <span><Icon icon="lucide:circle-alert" />生成未完成</span><strong>{{ state.label }}</strong>
     </div>
     <div v-else-if="!finished" class="artifact-progress">
       <span
-        ><Icon icon="lucide:loader-circle" />正在生成
+        ><Icon :icon="state.pending ? 'lucide:loader-circle' : 'lucide:info'" />{{ state.label }}
         {{ kind === 'image' ? '图片' : kind === 'video' ? '视频' : '文件' }}</span
-      ><strong>{{ progress ?? 0 }}%</strong>
-      <div><i :style="{ width: `${Math.max(4, progress ?? 0)}%` }" /></div>
+      ><strong v-if="state.pending && progressValue !== undefined">{{ progressValue }}%</strong>
+      <div v-if="state.pending && progressValue !== undefined">
+        <i :style="{ width: `${progressValue}%` }" />
+      </div>
     </div>
     <template v-else
       ><ResilientMediaPreview
@@ -53,9 +54,16 @@ const openWorkspace = () =>
       <footer>
         <span
           ><strong>{{ artifact.FileName }}</strong
-          ><small>真实任务输出 · {{ artifact.Status }}</small></span
+          ><small>任务产物 · 已生成</small></span
         ><button @click.stop="openWorkspace"><Icon icon="lucide:panel-right-open" />工作区</button>
       </footer></template
     >
   </article>
 </template>
+
+<style scoped>
+.artifact-output-card > footer button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+</style>

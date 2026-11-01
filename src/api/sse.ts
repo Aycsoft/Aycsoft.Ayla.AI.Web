@@ -4,9 +4,15 @@ import type { ParsedSseEvent } from '@/types/ai'
 /** 每次请求创建一个解析器，缓存尚未闭合的事件块。 */
 export class SseParser {
   private buffer = ''
+  private previousCarriageReturn = false
   /** 消费解码后的文本；done=true 时处理末尾没有空行的最后一个事件。 */
   push(chunk: string, done = false): ParsedSseEvent[] {
-    this.buffer += chunk.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    // CRLF可能恰好被网络分块切开，下一块的LF不能再当一个空行。
+    if (chunk) {
+      if (this.previousCarriageReturn && chunk.startsWith('\n')) chunk = chunk.slice(1)
+      this.previousCarriageReturn = chunk.endsWith('\r')
+      this.buffer += chunk.replace(/\r\n|\r/g, '\n')
+    }
     const events: ParsedSseEvent[] = []
     let boundary = this.buffer.indexOf('\n\n')
     while (boundary >= 0) {
@@ -42,9 +48,18 @@ export const unwrapAgentEvent = (event: ParsedSseEvent): ParsedSseEvent => {
 export const resolveTerminalMessageStatus = (
   status: string | undefined,
   content: string,
-): 'completed' | 'error' | 'stopped' => {
+  hasStructuredOutput = false,
+):
+  | 'completed'
+  | 'partial'
+  | 'error'
+  | 'stopped'
+  | 'awaiting_clarification'
+  | 'awaiting_approval' => {
+  if (status === 'awaiting_clarification' || status === 'awaiting_approval') return status
   if (status === 'error' || status === 'stopped') return status
-  return content.trim() ? 'completed' : 'error'
+  if (status === 'partial' || status === 'incomplete') return 'partial'
+  return content.trim() || hasStructuredOutput ? 'completed' : 'error'
 }
 
 /** 心跳注释不产出事件，多行 data 按换行连接；非 JSON 增量作为文本保留。 */
@@ -70,4 +85,18 @@ const parseBlock = (block: string): ParsedSseEvent | undefined => {
     /* text delta is valid */
   }
   return { event, id, data }
+}
+
+/** 步骤/产物完成不代表整轮完成；EOF必须有明确终态或等待用户合同。 */
+export function isTerminalSseEvent(event: ParsedSseEvent): boolean {
+  return [
+    'done',
+    'error',
+    'auth-required',
+    'run.completed',
+    'run.failed',
+    'run.cancelled',
+    'clarification.required',
+    'approval.required',
+  ].includes(unwrapAgentEvent(event).event)
 }

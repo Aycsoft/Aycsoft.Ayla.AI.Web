@@ -1,3 +1,4 @@
+import type { PublicProductObservation } from '@/utils/productObservation'
 /** 前后端共享传输类型；PascalCase 名称遵循现有 JSON 契约，不在页面层随意改名。 */
 
 /** 旧版业务响应信封；成功状态为 0、1 或 200，Item 承载数据。 */
@@ -69,6 +70,7 @@ export interface Attachment {
 
 /** 知识/检索引用；URL 字段兼容历史记录，展示前校验协议。 */
 export interface Citation {
+  ProductObservation?: PublicProductObservation | null
   DocumentId?: string
   DocumentName?: string
   Title?: string
@@ -85,6 +87,9 @@ export interface Citation {
   Snippet?: string
   Engine?: string
   PublishedAt?: string
+  PublishedAtSource?: string | null
+  PublishedAtPrecision?: 'date' | 'timestamp' | null
+  FreshnessStatus?: string | null
 }
 
 /** 生成产物元数据；Status 确认就绪后才可视为成功输出。 */
@@ -115,6 +120,7 @@ export type StepStatus =
 
 /** 执行步骤展示数据；ElapsedMs/StartedAtMs 单位为毫秒。 */
 export interface TraceStep {
+  JobId?: string
   StepId: string
   Title: string
   Detail?: string
@@ -128,6 +134,11 @@ export interface TraceStep {
 
 /** 持久化消息及可选生成详情；历史记录可能不含附件、计时或 token 字段。 */
 export interface Message {
+  ToolResult?: BusinessToolResult
+  ToolResults?: BusinessToolResult[]
+  Clarification?: AgentClarification
+  Approval?: { Title?: string; Description?: string }
+  SuggestedQuestions?: string[]
   Id: string
   ConversationId?: string
   Role: 'user' | 'assistant' | 'system'
@@ -145,10 +156,40 @@ export interface Message {
   Artifacts?: Artifact[]
   TotalDurationMs?: number
   FirstTokenDurationMs?: number
+  ToolDurationMs?: number
+  ErrorCode?: string
   GenerationStatus?: string
   InputTokens?: number | null
   OutputTokens?: number | null
   Model?: string | null
+}
+
+/** 保留真实调用标识；同工具重复调用也可能产生两份独立证据。 */
+export interface BusinessToolResult {
+  InvocationId?: string
+  ToolCode: string
+  Data: Record<string, unknown>
+  NavigationActions?: BusinessNavigation[]
+}
+
+export interface BusinessNavigation {
+  Label?: string
+  Title?: string
+  Route: string
+  Query?: Record<string, string>
+}
+
+export interface AgentClarification {
+  ClarificationId?: string
+  Title?: string
+  Questions: Array<{
+    Id: string
+    Label: string
+    Type?: 'single' | 'multiple' | 'text' | 'date' | 'number'
+    Required?: boolean
+    Placeholder?: string
+    Options?: Array<{ Label: string; Value: string; Recommended?: boolean }>
+  }>
 }
 
 /** 历史消息游标页；OldestSequence 用于向更早记录翻页。 */
@@ -158,43 +199,17 @@ export interface MessagePage {
   OldestSequence?: number
 }
 
-/** 生成模式及能力开关；模型可用性和权限以服务端校验为准。 */
-export interface ChatOptions {
-  Mode:
-    | 'auto'
-    | 'deepThinking'
-    | 'webSearch'
-    | 'imageRecognition'
-    | 'imageGeneration'
-    | 'videoGeneration'
-  DeepThinking?: boolean
-  WebSearch?: boolean
-  ImageRecognition?: boolean
-  ImageGeneration?: boolean
-  VideoGeneration?: boolean
-  VideoDurationSeconds?: number
-  VideoAspectRatio?: string
-  InternalModelAlias?: string
-  ProviderId?: string
-  ModelId?: string
-  AllowFreeModel?: boolean
-}
-
 /** 已登录业务会话请求；上下文附件必须引用已上传文件。 */
 export interface ChatRequest {
   ConversationId: string
   Message: string
   AssistantId: string
   PageContext?: { Path: string; Title?: string; Attachments?: Attachment[] }
-  Options?: ChatOptions
-  Provider?: string
-  Model?: string
 }
 
-/** 公开聊天请求；只提交文本与可选模型别名。 */
+/** 公开聊天仅提交文本；默认模型由服务端配置决定。 */
 export interface PublicChatRequest {
   Message: string
-  InternalModelAlias?: string
 }
 
 /** 已知 SSE/agent 事件集合；解析器仍保留未知事件以兼容扩展。 */
@@ -411,4 +426,22 @@ export interface AiUsageSummary {
   To: string
   Measurement: 'provider-reported' | string
   Rows: AiUsageSummaryRow[]
+}
+
+/** 1688图片搜货导航合同；经真实ERP内部SSO网关校验后显式跳转。 */
+export type AIExternalImageSearchScope = 'chat-attachment' | 'product' | 'developer'
+
+export interface AIExternalImageSearchRequest {
+  Provider: '1688'
+  FileId: string
+  Scope: AIExternalImageSearchScope
+  ConversationId?: string
+}
+
+export interface AIExternalImageSearchLaunch {
+  Provider: '1688'
+  Label: string
+  LaunchUrl: string
+  QueryFileId: string
+  QueryFileName: string
 }

@@ -15,6 +15,7 @@ const loading = ref(false)
 const error = ref('')
 const objectUrl = ref('')
 let requestVersion = 0
+let controller: AbortController | undefined
 
 const clearObjectUrl = () => {
   if (objectUrl.value) URL.revokeObjectURL(objectUrl.value)
@@ -23,6 +24,9 @@ const clearObjectUrl = () => {
 
 const load = async () => {
   const version = ++requestVersion
+  controller?.abort()
+  const currentController = new AbortController()
+  controller = currentController
   clearObjectUrl()
   error.value = ''
   loading.value = false
@@ -39,12 +43,29 @@ const load = async () => {
     try {
       const response = await fetch(props.src, {
         credentials: 'include',
+        signal: currentController.signal,
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache' },
       })
+      // 鉴权拒绝不是落盘延迟，停止自动重试并明确提示。
+      if (response.status === 401 || response.status === 403) {
+        if (version === requestVersion) {
+          loading.value = false
+          error.value =
+            response.status === 401 ? '登录已失效，请重新进入工作台' : '当前账号无权访问此文件'
+        }
+        return
+      }
       if (!response.ok) throw new Error(String(response.status))
       const blob = await response.blob()
       if (!blob.size) throw new Error('empty')
+      if (!blob.type.startsWith(`${props.kind}/`)) {
+        if (version === requestVersion) {
+          loading.value = false
+          error.value = '文件类型与预览类型不一致，请下载后核对'
+        }
+        return
+      }
       if (version !== requestVersion) return
       objectUrl.value = URL.createObjectURL(blob)
       loading.value = false
@@ -59,9 +80,16 @@ const load = async () => {
   }
 }
 
+/** 解码失败也要转成可重读的错误状态，不能留下永久空白媒体。 */
+const mediaFailed = () => {
+  clearObjectUrl()
+  error.value = '文件暂时无法预览，请重试或下载后查看'
+}
+
 watch(() => [props.src, props.kind], load, { immediate: true })
 onBeforeUnmount(() => {
   requestVersion++
+  controller?.abort()
   clearObjectUrl()
 })
 </script>
@@ -71,7 +99,7 @@ onBeforeUnmount(() => {
     <Icon icon="lucide:loader-circle" /><span>正在同步生成结果…</span>
   </div>
   <ResourceErrorCard v-else-if="error" :message="error" @retry="load" />
-  <img v-else-if="kind === 'image' && objectUrl" :src="objectUrl" :alt="alt" />
+  <img v-else-if="kind === 'image' && objectUrl" :src="objectUrl" :alt="alt" @error="mediaFailed" />
   <video
     v-else-if="kind === 'video' && objectUrl"
     :src="objectUrl"
@@ -79,5 +107,6 @@ onBeforeUnmount(() => {
     :muted="!controls"
     preload="metadata"
     @click.stop
+    @error="mediaFailed"
   />
 </template>

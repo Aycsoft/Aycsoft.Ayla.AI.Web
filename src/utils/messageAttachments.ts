@@ -4,6 +4,19 @@ import type { Artifact, Attachment, Message, MessagePage } from '@/types/ai'
 const attachmentRoute = (fileId: string) =>
   fileId ? `/api/sso/attachments/${encodeURIComponent(fileId)}` : ''
 
+/** Portal历史的受保护附件仅按同一FileId转到SSO网关，不回退匿名raw或改写任意地址。 */
+const inheritedAttachmentUrl = (value: string | undefined, fileId: string, download = false) => {
+  const prefix = '/api/AI/Chat/Attachments/'
+  if (!value?.startsWith(prefix) || !fileId) return value
+  try {
+    if (decodeURIComponent(value.slice(prefix.length).split(/[?#]/, 1)[0] || '') !== fileId)
+      return value
+    return `${attachmentRoute(fileId)}${download ? '?download=true' : ''}`
+  } catch {
+    return value
+  }
+}
+
 /** 兼容大小写及旧 URL 字段；地址缺失时回退到编码后的鉴权附件接口。 */
 export const normalizeAttachment = (value: Attachment | Record<string, unknown>): Attachment => {
   const item = value as Attachment & Record<string, unknown>
@@ -29,8 +42,8 @@ export const normalizeAttachment = (value: Attachment | Record<string, unknown>)
     FileName: String(item.FileName ?? item.fileName ?? '附件'),
     ContentType: String(item.ContentType ?? item.contentType ?? '') || undefined,
     FileSize: Number(item.FileSize ?? item.fileSize ?? item.Size ?? item.size ?? 0) || undefined,
-    ContentUrl: previewUrl,
-    DownloadUrl: fileUrl,
+    ContentUrl: inheritedAttachmentUrl(previewUrl, fileId),
+    DownloadUrl: inheritedAttachmentUrl(fileUrl, fileId, true),
   }
 }
 
@@ -53,7 +66,23 @@ export const attachmentToArtifact = (
   }
 }
 
-/** 汇集上传附件与助手产物，按 ArtifactId 保留首次出现项和原顺序。 */
+/** 合并同一产物的最新状态，保持顺序；显式较旧版本不能覆盖新版本。 */
+export const mergeArtifacts = (items: Artifact[]): Artifact[] => {
+  const merged = new Map<string, Artifact>()
+  for (const item of items) {
+    const previous = merged.get(item.ArtifactId)
+    if (
+      previous?.Version !== undefined &&
+      item.Version !== undefined &&
+      item.Version < previous.Version
+    )
+      continue
+    merged.set(item.ArtifactId, { ...previous, ...item })
+  }
+  return [...merged.values()]
+}
+
+/** 汇集上传附件与助手产物，同一ID的就绪事件可更新历史中的pending状态。 */
 export const collectWorkspaceArtifacts = (messages: Message[]): Artifact[] => {
   const items = messages.flatMap((message) => [
     ...(message.Attachments || [])
@@ -63,12 +92,7 @@ export const collectWorkspaceArtifacts = (messages: Message[]): Artifact[] => {
       ? [...(message.Artifacts || []), ...(message.AgentRun?.Artifacts || [])]
       : []),
   ])
-  const seen = new Set<string>()
-  return items.filter((item) => {
-    if (seen.has(item.ArtifactId)) return false
-    seen.add(item.ArtifactId)
-    return true
-  })
+  return mergeArtifacts(items)
 }
 
 /** 顶层非空附件优先，缺失时回退历史 PageContext；不修改输入消息。 */
@@ -85,6 +109,35 @@ export const normalizeMessageAttachments = (message: Message): Message => {
   return { ...message, Attachments: attachments.map(normalizeAttachment) }
 }
 
+/** 历史DTO只有GenerationStatus时恢复真实展示状态；不改原正文、错误码或产物。 */
+export const normalizeMessageState = (message: Message): Message => {
+  if (message.Role !== 'assistant') return message
+  const state = (message.GenerationStatus || message.Status || '').toLowerCase()
+  if (['cancelled', 'canceled', 'stopped'].includes(state))
+    return { ...message, Status: 'stopped', SuggestedQuestions: [] }
+  if (['partial', 'incomplete'].includes(state))
+    return {
+      ...message,
+      Status: 'partial',
+      ErrorMessage:
+        message.ErrorMessage || '本轮只完成了部分结果，请查看原回复中的限制；已保留实际产物。',
+    }
+  if (
+    ['failed', 'error', 'tool_failed', 'document_evidence_unavailable'].includes(state) ||
+    message.ErrorCode
+  )
+    return {
+      ...message,
+      Status: 'error',
+      ErrorMessage:
+        message.ErrorMessage || '这次请求未完成，请查看原回复中的原因；已有内容和产物已保留。',
+      SuggestedQuestions: [],
+    }
+  if (['completed', 'tool_completed', 'succeeded'].includes(state))
+    return { ...message, Status: 'completed' }
+  return message
+}
+
 /** 保留响应的数组/分页外形，让调用方无需通过 any 断言恢复原有类型。 */
 export function normalizeMessageResponse(response: Message[]): Message[]
 export function normalizeMessageResponse(response: MessagePage): MessagePage
@@ -93,6 +146,11 @@ export function normalizeMessageResponse(
   response: MessagePage | Message[],
 ): MessagePage | Message[] {
   return Array.isArray(response)
-    ? response.map(normalizeMessageAttachments)
-    : { ...response, Items: response.Items.map(normalizeMessageAttachments) }
+    ? response.map((message) => normalizeMessageAttachments(normalizeMessageState(message)))
+    : {
+        ...response,
+        Items: response.Items.map((message) =>
+          normalizeMessageAttachments(normalizeMessageState(message)),
+        ),
+      }
 }

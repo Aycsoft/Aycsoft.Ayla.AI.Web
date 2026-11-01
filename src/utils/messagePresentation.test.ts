@@ -1,6 +1,6 @@
 /** 历史消息展示回归：验证固定页脚清理、旧文件代理链接及危险引用协议拒绝。 */
 import { describe, expect, it } from 'vitest'
-import { citationUrl, stripLegacyAiFooter } from './messagePresentation'
+import { citationDateLabel, citationUrl, stripLegacyAiFooter } from './messagePresentation'
 
 describe('message presentation', () => {
   it('removes the obsolete AI disclosure from historical answers', () => {
@@ -26,5 +26,23 @@ describe('message presentation', () => {
       'https://example.com/a',
     )
     expect(citationUrl({ Title: 'bad', URL: 'javascript:alert(1)' })).toBe('')
+  })
+})
+
+describe('citation dates', () => {
+  it('keeps missing publication date distinct from retrieval time', () => {
+    const source = { Url: 'https://example.com/a', RetrievedAt: '2026-10-30T17:00:00Z' }
+    expect(citationDateLabel(source)).toBe('发布日期未知 · 检索 2026/10/31（北京时间）')
+  })
+  it('does not invent dates for invalid or absent timestamps', () => {
+    expect(citationDateLabel({ Url: 'https://example.com', PublishedAt: 'invalid' })).toBe(
+      '发布日期未知',
+    )
+    expect(citationDateLabel({ DocumentId: 'internal' })).toBe('')
+  })
+  it('preserves actual publication date independently', () => {
+    expect(citationDateLabel({ Url: 'https://example.com', PublishedAt: '2026-10-30' })).toBe(
+      '发布 2026/10/30',
+    )
   })
 })
