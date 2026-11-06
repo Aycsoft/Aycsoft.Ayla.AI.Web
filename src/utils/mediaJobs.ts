@@ -61,4 +61,4 @@ export const mediaJobCanStop = (job: MediaJob) =>
   ['submitting', 'accepted', 'polling', 'provider_completed', 'persisting'].includes(job.Status)
 
 export const mediaJobNeedsRefresh = (job: MediaJob) =>
-  ['submitting', 'polling', 'persisting'].includes(job.Status)
+  ['submitting', 'accepted', 'polling', 'provider_completed', 'persisting'].includes(job.Status)

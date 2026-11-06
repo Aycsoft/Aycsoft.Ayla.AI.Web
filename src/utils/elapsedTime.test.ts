@@ -4,11 +4,12 @@ import { formatElapsedTime } from './elapsedTime'
 
 describe('formatElapsedTime', () => {
   it.each([
-    [0, '0s'],
-    [Number.NaN, '0s'],
-    [24_999, '24s'],
-    [204_000, '3m 24s'],
-    [3_723_000, '1h 2m 3s'],
+    [0, '0 秒'],
+    [Number.NaN, '0 秒'],
+    [999, '不足 1 秒'],
+    [24_999, '24 秒'],
+    [204_000, '3 分钟 24 秒'],
+    [3_723_000, '1 小时 2 分钟 3 秒'],
   ])('formats %i milliseconds', (milliseconds, expected) => {
     expect(formatElapsedTime(milliseconds)).toBe(expected)
   })

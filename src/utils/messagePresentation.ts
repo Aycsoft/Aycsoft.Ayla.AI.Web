@@ -116,6 +116,6 @@ export function messageResponseNotice(message: Message) {
       ? [detail, '请打开“视频任务”核对原任务，勿重复提交；停止本地等待不代表停止计费。']
           .filter(Boolean)
           .join(' ')
-      : detail || '已保留收到的内容和产物，请查看原回复中的限制。',
+      : detail || '已保留取得的内容。展开执行记录可查看失败步骤和原因。',
   }
 }

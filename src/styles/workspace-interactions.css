@@ -1060,13 +1060,18 @@
 
 /* 终态提示独立于正文与加载动画，窄屏长错误说明仍在消息列内换行。 */
 .message-response-notice {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
   align-items: flex-start;
 }
 .message-response-notice > svg {
   flex-shrink: 0;
   margin-top: 2px;
 }
-.message-response-notice > div {
+.message-response-notice > span {
   min-width: 0;
   overflow-wrap: anywhere;
 }

@@ -33,11 +33,17 @@ import type {
 import { buildFeedbackPayload, type FeedbackPayload } from './feedbackContract'
 import { usageSummaryPath, type UsageSummaryQuery } from './usageContract'
 import { normalizeMessageResponse } from '@/utils/messageAttachments'
+import type { DailyInsightToday, MarketObservationFeed } from '@/utils/personalAttention'
 
 const workspace = (path: string) => `/workspace${path}`
 
 /** 后端接口按身份、会话、个人资料及管理能力分组；所有标识进入路径前必须编码。 */
 export const aiApi = {
+  // 登录关注只读取已有资料，不生成快照或抓取公开页面。
+  dailyInsightsToday: (signal?: AbortSignal) =>
+    request<DailyInsightToday>('/sso/daily-insights/today', { signal }),
+  marketObservations: (signal?: AbortSignal) =>
+    request<MarketObservationFeed>(workspace('/personal/market-observations'), { signal }),
   // 身份与公开配置：内部 SSO、外部邮箱账号使用各自会话接口。
   /** 探测当前 Cookie 会话。 */
   session: () => request<WorkspaceSession>('/sso/session'),

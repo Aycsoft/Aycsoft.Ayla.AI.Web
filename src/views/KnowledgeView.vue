@@ -55,6 +55,10 @@ const upload = async (event: Event) => {
   const file = input.files?.[0]
   input.value = ''
   if (!file || uploading.value) return
+  if (file.name.toLowerCase().endsWith('.doc')) {
+    ElMessage.info('这是旧版 Word 文件，请用 Word 或 WPS 另存为 .docx 后上传')
+    return
+  }
   uploading.value = true
   try {
     const stored = await aiApi.upload(file)
@@ -116,7 +120,7 @@ onMounted(load)
         ref="fileInput"
         class="sr-only"
         type="file"
-        accept=".pdf,.docx,.xlsx,.txt,.md"
+        accept=".pdf,.docx,.xlsx,.xls,.txt,.md"
         @change="upload"
     /></template>
     <section class="knowledge-panel workspace-panel">

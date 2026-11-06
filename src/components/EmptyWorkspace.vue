@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useAuthStore } from '@/stores/auth'
 import BrandLogo from '@/components/BrandLogo.vue'
 import MediaWorkspacePanel from '@/components/MediaWorkspacePanel.vue'
+import PersonalAttentionPanel from '@/components/PersonalAttentionPanel.vue'
 import { shouldShowMediaInspiration, type MediaCreationMode } from '@/utils/mediaInspiration'
 
 const props = withDefaults(
@@ -67,5 +68,10 @@ const mediaMode = computed<MediaCreationMode>(() => (props.mode === 'video' ? 'v
     <button v-if="auth.session" class="upload-entry" @click="$emit('upload')">
       <Icon icon="lucide:paperclip" /> 上传文件
     </button>
+    <PersonalAttentionPanel
+      v-if="
+        mode === 'chat' && auth.session?.Authenticated && auth.session.AccountType === 'internal'
+      "
+    />
   </section>
 </template>

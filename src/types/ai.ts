@@ -70,6 +70,7 @@ export interface Attachment {
 
 /** 知识/检索引用；URL 字段兼容历史记录，展示前校验协议。 */
 export interface Citation {
+  Products?: PublicCommerceProductCard[] | null
   ProductObservation?: PublicProductObservation | null
   DocumentId?: string
   DocumentName?: string
@@ -90,6 +91,23 @@ export interface Citation {
   PublishedAtSource?: string | null
   PublishedAtPrecision?: 'date' | 'timestamp' | null
   FreshnessStatus?: string | null
+}
+
+/** 公开商品卡只承接工具返回事实，不从目录位置推导销量排名。 */
+export interface PublicCommerceProductCard {
+  Name: string
+  SourceUrl: string
+  ObservedAt?: string
+  Platform?: string
+  ProductUrl?: string | null
+  ImageUrl?: string | null
+  Rank?: number | null
+  Rating?: number | null
+  ReviewCount?: number | null
+  DisplayedPrice?: string | null
+  PurchaseBadge?: string | null
+  ObservationKind?: string | null
+  SourceLastModified?: string | null
 }
 
 /** 生成产物元数据；Status 确认就绪后才可视为成功输出。 */

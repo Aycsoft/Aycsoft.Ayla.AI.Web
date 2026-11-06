@@ -84,12 +84,29 @@ const onFiles = async (selected: FileList | File[]) => {
     ElMessage.warning('上传文件需要先登录，请使用页面右上角登录入口')
     return
   }
-  const allowed = ['pdf', 'docx', 'xlsx', 'txt', 'md', 'csv', 'png', 'jpg', 'jpeg', 'webp', 'gif']
+  const allowed = [
+    'pdf',
+    'docx',
+    'xlsx',
+    'xls',
+    'txt',
+    'md',
+    'csv',
+    'png',
+    'jpg',
+    'jpeg',
+    'webp',
+    'gif',
+  ]
   const candidates = [...selected].slice(0, 4 - files.value.length)
   uploading.value = true
   try {
     for (const file of candidates) {
       const extension = file.name.split('.').pop()?.toLowerCase() || ''
+      if (extension === 'doc') {
+        ElMessage.info('这是旧版 Word 文件，请用 Word 或 WPS 另存为 .docx 后上传')
+        continue
+      }
       if (!allowed.includes(extension) || file.size > 20 * 1024 * 1024) {
         ElMessage.error(`${file.name} 不符合格式或 20MB 大小限制`)
         continue
@@ -194,7 +211,7 @@ const keydown = (event: KeyboardEvent) => {
           type="file"
           hidden
           multiple
-          accept=".pdf,.docx,.xlsx,.txt,.md,.csv,.png,.jpg,.jpeg,.webp,.gif"
+          accept=".pdf,.docx,.xlsx,.xls,.txt,.md,.csv,.png,.jpg,.jpeg,.webp,.gif"
           @change="onFiles(($event.target as HTMLInputElement).files || [])"
         />
         <button

@@ -41,3 +41,20 @@ test('准备失败明确未提交且不继续轮询或停止供应商任务', ()
   assert.equal(mediaJobCanStop(job), false)
   assert.equal(mediaJobNeedsRefresh(job), false)
 })
+
+test('受理及生成完成过渡状态持续刷新，暂停未知与终态不自动查询', () => {
+  const job = normalizeMediaJob({ JobId: id, Status: 'accepted' })!
+  for (const Status of ['submitting', 'accepted', 'polling', 'provider_completed', 'persisting'])
+    assert.equal(mediaJobNeedsRefresh({ ...job, Status }), true)
+  for (const Status of [
+    'paused',
+    'submission_unknown',
+    'needs_reconciliation',
+    'succeeded',
+    'provider_failed',
+    'submission_rejected',
+    'expired',
+    'unknown',
+  ])
+    assert.equal(mediaJobNeedsRefresh({ ...job, Status }), false)
+})

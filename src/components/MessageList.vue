@@ -20,6 +20,9 @@ import GenerationProgressCard from '@/components/GenerationProgressCard.vue'
 import SourceFavicon from '@/components/SourceFavicon.vue'
 import ProductObservationSummary from '@/components/ProductObservationSummary.vue'
 import BusinessResults from '@/components/BusinessResults.vue'
+import { businessNarrative } from '@/utils/businessNarrative'
+import CommerceProductCards from '@/components/CommerceProductCards.vue'
+import { mergeCommerceSources } from '@/utils/commerceCards'
 import PendingAgentInput from '@/components/PendingAgentInput.vue'
 import type { Artifact, Message } from '@/types/ai'
 import {
@@ -117,16 +120,7 @@ const submitFeedback = async (value: {
 const artifacts = (message: Message): Artifact[] =>
   mergeArtifacts([...(message.Artifacts || []), ...(message.AgentRun?.Artifacts || [])])
 const citations = (message: Message) =>
-  [...(message.Citations || []), ...(message.WebSources || [])].filter((item, index, all) => {
-    const key = citationUrl(item) || `${citationTitle(item)}:${item.DocumentId || ''}`
-    return (
-      all.findIndex(
-        (candidate) =>
-          (citationUrl(candidate) ||
-            `${citationTitle(candidate)}:${candidate.DocumentId || ''}`) === key,
-      ) === index
-    )
-  })
+  mergeCommerceSources([...(message.Citations || []), ...(message.WebSources || [])])
 const artifactProgress = (artifact: Artifact) =>
   [...chat.traces]
     .reverse()
@@ -189,10 +183,11 @@ const messageElapsed = (message: Message) => {
             <Icon v-if="message.Status === 'streaming'" icon="lucide:timer" />已处理
             {{ messageElapsed(message) }}
           </div>
-          <div v-if="message.Content" class="message-content">
-            <RichMessageContent :content="message.Content" />
+          <div v-if="businessNarrative(message).trim()" class="message-content">
+            <RichMessageContent :content="businessNarrative(message)" />
           </div>
           <BusinessResults :message="message" />
+          <CommerceProductCards :sources="citations(message)" :answer="message.Content" />
           <PendingAgentInput
             :message="message"
             :busy="chat.streaming"
@@ -272,16 +267,9 @@ const messageElapsed = (message: Message) => {
               </ol>
             </details>
           </div>
-          <div
-            v-if="messageResponseNotice(message)"
-            class="inline-error message-response-notice"
-            role="alert"
-          >
+          <div v-if="messageResponseNotice(message)" class="message-response-notice" role="status">
             <Icon icon="lucide:circle-alert" />
-            <div>
-              <strong>{{ messageResponseNotice(message)?.title }}</strong>
-              <p>{{ messageResponseNotice(message)?.detail }}</p>
-            </div>
+            <span>{{ messageResponseNotice(message)?.detail }}</span>
           </div>
           <div
             v-if="getSuggestedQuestions(message).length"

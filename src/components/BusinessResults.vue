@@ -14,9 +14,22 @@ import { imageSearchPreviewUrl } from '@/utils/imageSearchPreview'
 import SalesComparisonResult from './SalesComparisonResult.vue'
 import ResourcePreviewDialog from './ResourcePreviewDialog.vue'
 import ExternalImageSearchButton from './ExternalImageSearchButton.vue'
+import CompactBusinessTable from './CompactBusinessTable.vue'
+import { compactBusiness, compactProduct } from '@/utils/compactBusiness'
 
 const props = defineProps<{ message: Message }>()
-const products = computed(() => collectBusinessProducts(props.message))
+const compactResults = computed(() =>
+  collectBusinessToolResults(props.message).filter((result) => compactBusiness(result)),
+)
+const products = computed(() =>
+  collectBusinessProducts({
+    ...props.message,
+    ToolResult: undefined,
+    ToolResults: collectBusinessToolResults(props.message).filter(
+      (result) => !compactBusiness(result),
+    ),
+  }),
+)
 const images = computed(() => collectBusinessImages(props.message))
 const comparisons = computed(() =>
   collectBusinessToolResults(props.message).filter(
@@ -24,6 +37,9 @@ const comparisons = computed(() =>
   ),
 )
 const portalOrigin = String(import.meta.env.VITE_PORTAL_ORIGIN || window.location.origin)
+const productImage = (product: Record<string, unknown>) =>
+  compactProduct(product, portalOrigin).image
+const productText = (product: Record<string, unknown>) => compactProduct(product, portalOrigin)
 const missingImages = ref<Record<string, boolean>>({})
 const preview = ref<{ url: string; name: string }>()
 
@@ -59,10 +75,15 @@ const scoreLabel = (score: unknown) =>
 
 <template>
   <section
-    v-if="products.length || images.length || comparisons.length"
+    v-if="products.length || images.length || comparisons.length || compactResults.length"
     class="business-results"
     aria-label="业务查询结果"
   >
+    <CompactBusinessTable
+      v-for="(result, index) in compactResults"
+      :key="result.InvocationId || index"
+      :result="result"
+    />
     <SalesComparisonResult
       v-for="(result, index) in comparisons"
       :key="result.InvocationId || index"
@@ -71,16 +92,14 @@ const scoreLabel = (score: unknown) =>
     <div v-if="products.length" class="business-results__products">
       <article v-for="entry in products" :key="entry.key" class="business-product">
         <button
-          v-if="previewUrl(entry.product.MainImageUrl || entry.product.PreviewUrl)"
+          v-if="productImage(entry.product)"
           type="button"
           class="business-image"
-          @click="
-            showPreview(entry.product.MainImageUrl || entry.product.PreviewUrl, entry.product.Name)
-          "
+          @click="showPreview(productImage(entry.product), productText(entry.product).name)"
         >
           <img
             v-if="!missingImages[entry.key]"
-            :src="previewUrl(entry.product.MainImageUrl || entry.product.PreviewUrl)"
+            :src="productImage(entry.product)"
             :alt="businessText(entry.product.Name)"
             loading="lazy"
             @error="missingImages[entry.key] = true"
@@ -88,8 +107,10 @@ const scoreLabel = (score: unknown) =>
           <span v-else>图片暂不可用</span>
         </button>
         <div>
-          <strong>{{ businessText(entry.product.Name) || '商品' }}</strong>
-          <p>{{ businessText(entry.product.SKU) || businessText(entry.product.ProductCode) }}</p>
+          <strong :title="productText(entry.product).name">{{
+            productText(entry.product).shortName
+          }}</strong>
+          <p>{{ productText(entry.product).sku }}</p>
           <small>{{ businessText(entry.product.CategoryName) }}</small>
           <ExternalImageSearchButton
             :file-id="businessText(entry.product.MainImageFileId)"
