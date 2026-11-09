@@ -23,7 +23,10 @@ const stepIcon = (status: string) =>
 
 <template>
   <details class="reasoning-timeline" :open="chat.streaming">
-    <summary>{{ summary }}<Icon icon="lucide:chevron-down" /></summary>
+    <summary :aria-busy="chat.streaming">
+      <span v-if="chat.streaming" class="reasoning-active-spinner" aria-hidden="true" />
+      {{ summary }}<Icon class="reasoning-chevron" icon="lucide:chevron-down" />
+    </summary>
     <div class="reasoning-divider" />
     <div class="reasoning-count">{{ thinking }} 个执行步骤</div>
     <div class="reasoning-title"><Icon icon="lucide:brain" />执行过程</div>

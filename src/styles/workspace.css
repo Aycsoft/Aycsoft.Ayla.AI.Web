@@ -459,8 +459,18 @@ body {
   font-size: 11px;
   transition: transform 0.18s;
 }
-.reasoning-timeline[open] > summary svg {
+.reasoning-timeline[open] > summary .reasoning-chevron {
   transform: rotate(180deg);
+}
+.reasoning-active-spinner {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  margin-right: 4px;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 .reasoning-divider {
   height: 1px;
