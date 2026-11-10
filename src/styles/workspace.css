@@ -213,6 +213,14 @@ body {
   padding-top: 2px;
 }
 .sidebar-group > .conversation-load-more {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 8px;
+  font-size: inherit;
+  border: 0;
+  background: transparent;
   margin-top: 6px;
   justify-content: center;
   color: var(--mm-weak);

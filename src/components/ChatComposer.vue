@@ -5,6 +5,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import { ElImage } from 'element-plus'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import 'element-plus/es/components/message/style/css.mjs'
 import { aiApi } from '@/api/ai'
@@ -32,6 +33,16 @@ const files = computed<Attachment[]>({
   },
 })
 const uploading = ref(false)
+const uploadName = ref('')
+const uploadPercent = ref<number>()
+const draftPreviews = ref<Record<string, string>>({})
+const pendingPreview = ref('')
+// 原图预览只存在当前草稿，不把本机 blob 地址传给后端。
+const clearPreview = (id: string) => {
+  if (draftPreviews.value[id]) URL.revokeObjectURL(draftPreviews.value[id])
+  delete draftPreviews.value[id]
+}
+onBeforeUnmount(() => { Object.keys(draftPreviews.value).forEach(clearPreview); if (pendingPreview.value) URL.revokeObjectURL(pendingPreview.value) })
 const input = ref<HTMLTextAreaElement>()
 const picker = ref<HTMLInputElement>()
 const composing = ref(false)
@@ -112,12 +123,23 @@ const onFiles = async (selected: FileList | File[]) => {
         continue
       }
       try {
-        files.value.push(await aiApi.upload(file))
+        uploadName.value = file.name
+        pendingPreview.value = file.type.startsWith('image/') ? URL.createObjectURL(file) : ''
+        uploadPercent.value = undefined
+        const uploaded = await aiApi.upload(file, (percent) => { uploadPercent.value = percent })
+        if (pendingPreview.value) draftPreviews.value[uploaded.FileId] = pendingPreview.value
+        pendingPreview.value = ''
+        files.value.push(uploaded)
       } catch (error) {
+        if (pendingPreview.value) URL.revokeObjectURL(pendingPreview.value)
+        pendingPreview.value = ''
         ElMessage.error((error as Error).message)
       }
     }
   } finally {
+    if (pendingPreview.value) URL.revokeObjectURL(pendingPreview.value)
+    pendingPreview.value = ''
+    uploadName.value = ''
     uploading.value = false
   }
 }
@@ -138,6 +160,7 @@ const submit = async () => {
   emit('sent')
   try {
     await chat.send(value, attachments)
+    attachments.forEach((item) => clearPreview(item.FileId))
   } catch (error) {
     // 会话尚未受理（例如创建会话失败）时恢复原稿；流式失败由消息历史提供重试上下文。
     text.value = originalText
@@ -184,10 +207,15 @@ defineExpose({ focus: () => nextTick(() => input.value?.focus()) })
         <Icon icon="lucide:rotate-ccw" />重试
       </button>
     </div>
+    <div v-if="uploading" class="composer-files" role="status">
+      <ElImage v-if="pendingPreview" :src="pendingPreview" style="width:40px;height:40px" fit="contain" />
+      <span>{{ uploadName || '准备上传' }} · {{ uploadPercent === 100 ? '等待保存确认' : `正在上传${uploadPercent === undefined ? '' : ` ${uploadPercent}%`}` }} <progress :value="uploadPercent" max="100" aria-label="正在上传附件"></progress></span>
+    </div>
     <div v-if="files.length" class="composer-files">
       <span v-for="(file, index) in files" :key="file.FileId">
-        <Icon icon="lucide:file-check" />{{ file.FileName
-        }}<button @click="files.splice(index, 1)">
+        <ElImage v-if="draftPreviews[file.FileId]" :src="draftPreviews[file.FileId]" :preview-src-list="[draftPreviews[file.FileId]!]" preview-teleported style="width:40px;height:40px" fit="contain" />
+        <Icon v-else icon="lucide:file-check" />{{ file.FileName
+        }}<button @click="clearPreview(file.FileId); files.splice(index, 1)">
           <Icon icon="lucide:x" />
         </button>
       </span>

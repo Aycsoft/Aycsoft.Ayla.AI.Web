@@ -68,7 +68,7 @@ onBeforeUnmount(() => {
 defineExpose({ open })
 </script>
 <template>
-  <ElDrawer v-model="visible" title="单据识别" size="min(1120px,96vw)"
+  <ElDrawer v-model="visible" append-to-body title="单据识别" size="min(1120px,96vw)"
     ><div class="document-workbench">
       <div class="document-workbench__source">
         <label

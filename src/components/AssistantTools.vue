@@ -173,7 +173,7 @@ onBeforeUnmount(() => {
     :submit="submitDocument"
     :results="documentResults"
   />
-  <ElDrawer v-model="imageOpen" title="电商出图" size="min(820px,96vw)">
+  <ElDrawer v-model="imageOpen" append-to-body title="电商出图" size="min(820px,96vw)">
     <div class="image-workbench">
       <div class="image-workbench__controls">
         <ElSelect v-model="mode" aria-label="出图用途"

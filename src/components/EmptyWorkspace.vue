@@ -20,10 +20,10 @@ defineEmits<{ prompt: [value: string]; upload: [] }>()
 const settings = useSettingsStore()
 const auth = useAuthStore()
 const businessActions = [
-  ['查询 SKU 库存', 'lucide:package-search'],
-  ['分析采购进度', 'lucide:truck'],
-  ['生成销售报告', 'lucide:chart-no-axes-combined'],
-  ['分析上传文件', 'lucide:file-search'],
+  ['帮我选5款适合美国市场的壁灯', 'lucide:package-search'],
+  ['识别这张单据，手写和印刷内容分开列出来', 'lucide:file-search'],
+  ['把这款灯做成居中白底图，保留原样', 'lucide:image'],
+  ['Place this lamp in my dining room photo, keeping the original design.', 'lucide:house'],
 ]
 const publicActions = [
   ['帮我梳理一个复杂问题', 'lucide:list-tree'],

@@ -243,22 +243,28 @@ export const aiApi = {
       body: JSON.stringify(data),
     }),
   /** 上传附件；让浏览器生成 multipart boundary，并拒绝缺少文件标识的成功响应。 */
-  upload: async (file: File): Promise<Attachment> => {
+  upload: async (file: File, onProgress?: (percent: number) => void): Promise<Attachment> => {
     const form = new FormData()
     form.append('file', file)
-    const uploadResponse = await fetch(apiUrl('/sso/attachments'), {
-      method: 'POST',
-      credentials: 'include',
-      headers: mutationHeaders(),
-      body: form,
+    // XMLHttpRequest 提供真实传输字节进度；仍等待服务器保存成功才返回附件。
+    const responseText = await new Promise<string>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', apiUrl('/sso/attachments'))
+      xhr.withCredentials = true
+      Object.entries(mutationHeaders()).forEach(([key, value]) => xhr.setRequestHeader(key, value))
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && event.total > 0) onProgress?.(Math.round(event.loaded / event.total * 100))
+      }
+      xhr.onerror = () => reject(new ApiError('文件上传网络中断，请重试', 0))
+      xhr.onabort = () => reject(new ApiError('文件上传已取消', 0))
+      xhr.onload = () => {
+        if (xhr.status === 401) reject(new ApiError('上传文件需要先登录', 401))
+        else if (xhr.status < 200 || xhr.status >= 300) reject(new ApiError('文件上传失败，请重试', xhr.status))
+        else resolve(xhr.responseText)
+      }
+      xhr.send(form)
     })
-    if (uploadResponse.status === 401) throw new ApiError('上传文件需要先登录', 401)
-    if (!uploadResponse.ok)
-      throw new ApiError(
-        (await uploadResponse.text().catch(() => '')) || '文件上传失败',
-        uploadResponse.status,
-      )
-    const uploaded = (await uploadResponse.json()) as {
+    const uploaded = JSON.parse(responseText) as {
       FileId?: string
       FileName?: string
       ContentType?: string
