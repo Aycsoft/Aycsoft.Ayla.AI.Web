@@ -1,6 +1,14 @@
 /** 方案返回合同回归：错误负载不得解锁编辑、分析或导出。 */
 import { afterEach, expect, test, vi } from 'vitest'
-import { isSelectionProject, saveSelectionProject, type SelectionProjectUpdate } from './selection'
+import {
+  analyzeSelectionProject,
+  getActiveSelectionAnalysis,
+  getSelectionAnalysisOperation,
+  cancelSelectionAnalysisOperation,
+  isSelectionProject,
+  saveSelectionProject,
+  type SelectionProjectUpdate,
+} from './selection'
 afterEach(() => vi.unstubAllGlobals())
 
 test('拒绝失败响应、未解包响应和缺失候选的项目', () => {
@@ -150,4 +158,40 @@ test('新分析事实与假设合同保留来源、采集时间、零评价及�
       analysis: { ...analysis, analyses: [{ ...row, facts: [{ Field: '错误大小写' }] }] },
     }),
   ).toBe(false)
+})
+
+test('后台分析202受理与恢复取消合同，不把受理当成分析成功', async () => {
+  const operation = {
+    id: 'op-1',
+    projectId: 'p-1',
+    expectedVersion: 3,
+    status: 'queued',
+    stage: 'queued',
+    attempt: 0,
+    cancelRequested: false,
+  }
+  const reply = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(reply(operation, 202))
+    .mockResolvedValueOnce(reply({ operation }))
+    .mockResolvedValueOnce(reply({ ...operation, status: 'running' }))
+    .mockResolvedValueOnce(reply({ ...operation, cancelRequested: true }))
+  vi.stubGlobal('fetch', fetcher)
+  const started = await analyzeSelectionProject('p-1', 3, 'same-key')
+  expect(started.Item.status).toBe('queued')
+  expect(JSON.parse(fetcher.mock.calls[0]![1].body)).toEqual({
+    expectedVersion: 3,
+    idempotencyKey: 'same-key',
+  })
+  expect((await getActiveSelectionAnalysis('p-1')).Item.operation?.id).toBe('op-1')
+  expect((await getSelectionAnalysisOperation('p-1', 'op-1')).Item.status).toBe('running')
+  expect((await cancelSelectionAnalysisOperation('p-1', 'op-1')).Item.cancelRequested).toBe(true)
+  expect(fetcher.mock.calls.map(([url, init]) => [url, init.method || 'GET'])).toEqual([
+    ['/api/workspace/selection-projects/p-1/analyze', 'POST'],
+    ['/api/workspace/selection-projects/p-1/operations/active', 'GET'],
+    ['/api/workspace/selection-projects/p-1/operations/op-1', 'GET'],
+    ['/api/workspace/selection-projects/p-1/operations/op-1/cancel', 'POST'],
+  ])
 })

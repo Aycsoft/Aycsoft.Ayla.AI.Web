@@ -36,6 +36,10 @@ import {
   getSelectionProject,
   saveSelectionProject,
   analyzeSelectionProject,
+  getActiveSelectionAnalysis,
+  getSelectionAnalysisOperation,
+  cancelSelectionAnalysisOperation,
+  type SelectionAnalysisOperation,
   listSelectionProjects,
   type SelectionProject,
   type SelectionCostScenario,
@@ -45,7 +49,10 @@ import {
 } from '@/api/selection'
 import { publicCommerceUrl as safePublicUrl } from '@/utils/commerceCards'
 import { downloadBackendResource } from '@/utils/backendResource'
+import { createSelectionPoller } from '@/utils/selectionPoller'
+import { createUuid } from '@/utils/uuid'
 import SelectionProductHistory from './SelectionProductHistory.vue'
+import SelectionClaims from './SelectionClaims.vue'
 import SelectionBusinessReferences from './SelectionBusinessReferences.vue'
 
 const props = defineProps<{ conversationId?: string; messageId?: string }>()
@@ -53,6 +60,27 @@ const visible = ref(false)
 const loading = ref(false)
 const saving = ref(false)
 const analyzing = ref(false)
+const cancelling = ref(false)
+const operation = ref<SelectionAnalysisOperation>()
+const operationNotice = ref('')
+let operationPoller: { stop: () => void } | undefined
+let operationGeneration = 0
+const stageLabels: Record<string, string> = {
+  queued: '分析任务已排队',
+  collecting_evidence: '正在收集市场与内部资料',
+  analyzing: '正在分析候选并核对依据',
+  saving: '正在保存分析结果',
+  completed: '分析结果已保存',
+  cancelled: '分析已取消',
+  failed: '本次分析暂未完成',
+  superseded: '方案已有更新',
+}
+const operationStage = computed(() =>
+  operation.value?.cancelRequested && operationIsActive(operation.value)
+    ? '正在取消分析，已保存方案会保留'
+    : stageLabels[operation.value?.stage || ''] || '正在处理选品方案',
+)
+let pendingStartKey: { projectId: string; version: number; key: string } | undefined
 const exporting = ref(false)
 const history = ref<SelectionProject[]>([])
 const error = ref('')
@@ -175,6 +203,7 @@ async function load() {
     if (result.Status !== 1 || !result.Item)
       throw new Error(result.Message || '方案暂时无法读取，请重试。')
     applyProject(result.Item)
+    void restoreAnalysis()
   } catch (reason) {
     if (version === requestVersion)
       error.value = reason instanceof Error ? reason.message : '方案暂时无法读取，请重试。'
@@ -187,6 +216,7 @@ async function open() {
   visible.value = true
   if (!project.value) await load()
   if (!project.value) return
+  void restoreAnalysis()
   try {
     const response = await listSelectionProjects()
     if (response.Status !== 1) throw new Error(response.Message || '历史方案暂时无法读取。')
@@ -212,6 +242,7 @@ async function chooseProject(id: string) {
     if (response.Status !== 1 || !response.Item)
       throw new Error(response.Message || '方案暂时无法读取。')
     applyProject(response.Item)
+    void restoreAnalysis()
   } catch (reason) {
     error.value = reason instanceof Error ? reason.message : '方案暂时无法读取。'
   } finally {
@@ -248,7 +279,7 @@ async function exportFile(format: 'xlsx' | 'docx') {
 }
 
 async function save() {
-  if (!project.value || loading.value || saving.value) return
+  if (!project.value || loading.value || saving.value || analyzing.value) return
   saving.value = true
   error.value = ''
   const value = project.value
@@ -281,6 +312,7 @@ async function close(done: () => void) {
       return
     }
   }
+  stopOperationPolling()
   done()
 }
 
@@ -326,26 +358,139 @@ function addCost() {
   project.value.costs.push(row)
 }
 
+/** 只停止页面观察；后台任务继续，重新打开时按方案恢复。 */
+function stopOperationPolling() {
+  operationGeneration++
+  operationPoller?.stop()
+  operationPoller = undefined
+}
+
+function operationIsActive(value: SelectionAnalysisOperation) {
+  return value.status === 'queued' || value.status === 'running'
+}
+
+function observeOperation(value: SelectionAnalysisOperation) {
+  stopOperationPolling()
+  operation.value = value
+  analyzing.value = operationIsActive(value)
+  const generation = operationGeneration
+  const projectId = value.projectId
+  operationPoller = createSelectionPoller({
+    read: async (signal) => {
+      const response = await getSelectionAnalysisOperation(projectId, value.id, signal)
+      if (response.Status !== 1 || !response.Item?.id) throw new Error('暂时无法读取分析进度')
+      return response.Item
+    },
+    receive: async (result, signal) => {
+      if (generation !== operationGeneration || project.value?.id !== projectId || signal.aborted)
+        return false
+      operation.value = result
+      operationNotice.value = ''
+      analyzing.value = operationIsActive(result)
+      if (analyzing.value) return true
+      if (result.status === 'succeeded') {
+        // 后台确认保存成功后再取项目，不能把阶段结束当作结果已拿到。
+        const response = await getSelectionProject(projectId)
+        if (generation !== operationGeneration || signal.aborted) return false
+        if (response.Status !== 1 || !response.Item) throw new Error('分析已保存，正在重新读取结果')
+        if (dirty.value)
+          operationNotice.value = '分析结果已保存。当前编辑仍保留，请保存或重新读取后查看。'
+        else applyProject(response.Item)
+      } else if (result.status === 'superseded') {
+        operationNotice.value = '方案已有更新，本次分析未覆盖新版本。请重新读取后再分析。'
+      } else if (result.status === 'cancelled')
+        operationNotice.value = '分析已取消，已有方案和分析保持不变。'
+      else operationNotice.value = '本次分析暂未完成，已有方案仍在，可以继续编辑或重新分析。'
+      pendingStartKey = undefined
+      return false
+    },
+    failed: () => {
+      operationNotice.value = '暂时无法读取分析进度，正在自动恢复连接；后台任务不会重复启动。'
+    },
+  })
+}
+
+async function restoreAnalysis() {
+  if (!project.value || !visible.value) return
+  const projectId = project.value.id
+  const generation = ++operationGeneration
+  operationPoller?.stop()
+  try {
+    const response = await getActiveSelectionAnalysis(projectId)
+    if (generation !== operationGeneration || project.value?.id !== projectId || !visible.value)
+      return
+    if (response.Status !== 1 || !response.Item) throw new Error('暂时无法读取分析进度')
+    const active = response.Item.operation
+    if (active) observeOperation(active)
+    else {
+      analyzing.value = false
+      operation.value = undefined
+      if (!dirty.value) {
+        const latest = await getSelectionProject(projectId)
+        if (
+          generation === operationGeneration &&
+          project.value?.id === projectId &&
+          !dirty.value &&
+          visible.value &&
+          latest.Status === 1 &&
+          latest.Item
+        )
+          applyProject(latest.Item)
+      }
+    }
+  } catch {
+    operationNotice.value = '暂时无法恢复分析进度，可点击“查看进度”重试；已有方案保持不变。'
+  }
+}
+
 async function analyze() {
-  if (!project.value || loading.value || saving.value) return
+  if (!project.value || loading.value || saving.value || analyzing.value) return
   if (dirty.value) {
     await save()
     if (dirty.value || error.value) return
   }
   saving.value = true
-  analyzing.value = true
   error.value = ''
+  operationNotice.value = ''
   activeTab.value = 'analysis'
   try {
-    const result = await analyzeSelectionProject(project.value.id, project.value.version)
-    if (result.Status !== 1 || !result.Item)
-      throw new Error(result.Message || '分析暂未完成，原方案已保留。')
-    applyProject(result.Item)
+    const current = project.value
+    // 受理响应丢失后复用幂等键；先检查活动任务，不重复启动收费分析。
+    const active = await getActiveSelectionAnalysis(current.id)
+    if (active.Status !== 1 || !active.Item)
+      throw new Error('暂时无法确认后台任务，请查看进度后重试。')
+    if (active.Item.operation) {
+      observeOperation(active.Item.operation)
+      return
+    }
+    if (
+      !pendingStartKey ||
+      pendingStartKey.projectId !== current.id ||
+      pendingStartKey.version !== current.version
+    )
+      pendingStartKey = { projectId: current.id, version: current.version, key: createUuid() }
+    const response = await analyzeSelectionProject(current.id, current.version, pendingStartKey.key)
+    if (response.Status !== 1 || !response.Item?.id)
+      throw new Error(response.Message || '暂时未取得受理状态，请查看进度确认。')
+    observeOperation(response.Item)
   } catch (reason) {
-    error.value = reason instanceof Error ? reason.message : '分析暂未完成，原方案已保留。'
+    error.value = reason instanceof Error ? reason.message : '暂时未取得受理状态，已有方案已保留。'
   } finally {
     saving.value = false
-    analyzing.value = false
+  }
+}
+
+async function cancelAnalysis() {
+  if (!project.value || !operation.value || cancelling.value || !analyzing.value) return
+  cancelling.value = true
+  try {
+    const response = await cancelSelectionAnalysisOperation(project.value.id, operation.value.id)
+    if (response.Status !== 1 || !response.Item?.id) throw new Error('取消请求暂未确认')
+    observeOperation(response.Item)
+  } catch {
+    operationNotice.value = '取消请求暂未确认，任务可能仍在运行。可以再次取消或查看进度。'
+  } finally {
+    cancelling.value = false
   }
 }
 
@@ -426,6 +571,7 @@ function removeRow(
 
 onBeforeUnmount(() => {
   requestVersion++
+  stopOperationPolling()
 })
 </script>
 
@@ -459,8 +605,21 @@ onBeforeUnmount(() => {
     <p v-else-if="!loading && !project && !error" class="selection-notice">
       还没有选品方案。查询商品后，可在商品结果下建立方案。
     </p>
+    <div v-if="operation || operationNotice" class="selection-notice" role="status">
+      <span v-if="operation">{{ operationStage }}</span>
+      <span v-if="operationNotice"> {{ operationNotice }}</span>
+      <ElLink :disabled="loading || saving" @click="restoreAnalysis">查看进度</ElLink>
+      <BaseButton
+        v-if="analyzing"
+        size="small"
+        :loading="cancelling"
+        :disabled="operation?.cancelRequested"
+        @click="cancelAnalysis"
+        >取消分析</BaseButton
+      >
+    </div>
     <template v-if="project">
-      <ElForm :disabled="saving || loading" class="selection-fields">
+      <ElForm :disabled="saving || loading || analyzing" class="selection-fields">
         <div class="selection-heading">
           <ElInput v-model="project.title" aria-label="方案名称" placeholder="方案名称" />
           <span>版本 {{ project.version }}{{ dirty ? ' · 尚未保存' : '' }}</span>
@@ -554,7 +713,7 @@ onBeforeUnmount(() => {
           <p v-if="analyzing" class="selection-notice" role="status">
             正在结合候选证据分析推荐理由、风险和验证事项…
           </p>
-          <template v-else-if="project.analysis">
+          <template v-if="project.analysis">
             <p class="selection-analysis-text">{{ project.analysis.overview }}</p>
             <div v-if="project.analysis.gaps?.length" class="selection-notice" role="note">
               <strong>尚待补充的依据</strong>
@@ -610,7 +769,9 @@ onBeforeUnmount(() => {
                   </ElTableColumn>
                 </ElTable>
               </template>
-              <h4 class="selection-analysis-label">待验证判断</h4>
+              <SelectionClaims v-if="item.claims?.length" :claims="item.claims" />
+<template v-else>
+<h4 class="selection-analysis-label">待验证判断</h4>
               <ul
                 v-if="item.hypotheses?.length"
                 class="selection-analysis-list selection-analysis-text"
@@ -621,11 +782,12 @@ onBeforeUnmount(() => {
               <p v-if="item.risks.length" class="selection-notice">
                 需要留意：{{ item.risks.join('；') }}
               </p>
+              </template>
               <SelectionBusinessReferences
                 :associations="project.analysis.businessAssociations"
                 :candidate-id="item.candidateId"
               />
-              <ul v-if="item.nextActions.length">
+              <ul v-if="!item.claims?.length && item.nextActions.length">
                 <li v-for="action in item.nextActions" :key="action">{{ action }}</li>
               </ul>
               <details v-if="item.evidenceUrls.length">
@@ -839,7 +1001,10 @@ onBeforeUnmount(() => {
       ><div class="selection-footer">
         <small>{{ updatedLabel }}</small
         ><ElLink :disabled="loading || saving" @click="load">重新读取</ElLink
-        ><BaseButton :disabled="!project || loading || saving" :loading="analyzing" @click="analyze"
+        ><BaseButton
+          :disabled="!project || loading || saving || analyzing"
+          :loading="analyzing || saving"
+          @click="analyze"
           >分析候选</BaseButton
         ><ElLink :disabled="!project || loading || saving" @click="exportFile('xlsx')"
           >导出 Excel</ElLink
@@ -848,7 +1013,7 @@ onBeforeUnmount(() => {
         ><small v-if="exporting" role="status">正在生成文件…</small
         ><BaseButton
           type="primary"
-          :disabled="!project || loading || !dirty"
+          :disabled="!project || loading || analyzing || !dirty"
           :loading="saving && !analyzing && !exporting"
           @click="save"
           >保存方案</BaseButton

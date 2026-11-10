@@ -115,6 +115,14 @@ export interface SelectionProject {
       reason: string
       facts?: { field: string; value: string; sourceUrl: string; observedAt?: string | null }[]
       hypotheses?: string[]
+      claims?: {
+        field: string
+        kind: 'fact' | 'inference' | 'action'
+        text: string
+        support: { sourceUrl: string; exactQuote: string }[]
+        basis?: string | null
+        limitation?: string | null
+      }[]
       evidenceUrls: string[]
       risks: string[]
       nextActions: string[]
@@ -170,7 +178,7 @@ export const listSelectionProjects = async () => ({
   Item: await request<SelectionProject[]>(base),
   Message: '',
 })
-const envelope = async (action: Promise<SelectionProject>) => ({
+const envelope = async <T>(action: Promise<T>) => ({
   Status: 1,
   Item: await action,
   Message: '',
@@ -197,13 +205,64 @@ export const saveSelectionProject = (id: string, data: SelectionProjectUpdate) =
       signal: AbortSignal.timeout(60000),
     }),
   )
-export const analyzeSelectionProject = (id: string, expectedVersion: number) =>
+export interface SelectionAnalysisOperation {
+  id: string
+  projectId: string
+  expectedVersion: number
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'superseded'
+  stage: string
+  attempt: number
+  cancelRequested: boolean
+  createdAt: string
+  updatedAt: string
+  resultProjectVersion?: number | null
+  errorCode?: string | null
+}
+
+const operationSignal = (signal?: AbortSignal) =>
+  signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000)
+
+/** 启动持久后台任务，HTTP只等待受理结果，不等待模型完成。 */
+export const analyzeSelectionProject = (
+  id: string,
+  expectedVersion: number,
+  idempotencyKey: string,
+) =>
   envelope(
-    request<SelectionProject>(`${base}/${encodeURIComponent(id)}/analyze`, {
+    request<SelectionAnalysisOperation>(`${base}/${encodeURIComponent(id)}/analyze`, {
       method: 'POST',
-      body: JSON.stringify({ expectedVersion }),
-      signal: AbortSignal.timeout(120000),
+      body: JSON.stringify({ expectedVersion, idempotencyKey }),
+      signal: operationSignal(),
     }),
+  )
+
+export const getActiveSelectionAnalysis = (id: string, signal?: AbortSignal) =>
+  envelope(
+    request<{ operation: SelectionAnalysisOperation | null }>(
+      `${base}/${encodeURIComponent(id)}/operations/active`,
+      { signal: operationSignal(signal) },
+    ),
+  )
+
+export const getSelectionAnalysisOperation = (
+  id: string,
+  operationId: string,
+  signal?: AbortSignal,
+) =>
+  envelope(
+    request<SelectionAnalysisOperation>(
+      `${base}/${encodeURIComponent(id)}/operations/${encodeURIComponent(operationId)}`,
+      { signal: operationSignal(signal) },
+    ),
+  )
+
+/** 只有用户点击取消才调用；关闭面板或组件卸载不会调用。 */
+export const cancelSelectionAnalysisOperation = (id: string, operationId: string) =>
+  envelope(
+    request<SelectionAnalysisOperation>(
+      `${base}/${encodeURIComponent(id)}/operations/${encodeURIComponent(operationId)}/cancel`,
+      { method: 'POST', signal: operationSignal() },
+    ),
   )
 
 export const getSelectionProductHistory = async (
