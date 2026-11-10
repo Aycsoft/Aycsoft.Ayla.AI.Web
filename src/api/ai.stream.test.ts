@@ -108,3 +108,52 @@ describe('chat stream transport', () => {
     ).rejects.toMatchObject({ status: 502, message: '服务端未返回 SSE 流' })
   })
 })
+
+it('半开连接静默后释放锁且保留片段，不重复请求', async () => {
+  vi.useFakeTimers()
+  let cancelled = false
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('event: delta\ndata: 部分结果\n\n'))
+    },
+    cancel() {
+      cancelled = true
+    },
+  })
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(new Response(body, { headers: { 'Content-Type': 'text/event-stream' } }))
+  vi.stubGlobal('fetch', fetcher)
+  const events: ParsedSseEvent[] = []
+  const pending = streamChat(chatRequest, new AbortController().signal, (event) =>
+    events.push(event),
+  )
+  const rejection = expect(pending).rejects.toMatchObject({ name: 'AIStreamInterruptedError' })
+  await vi.advanceTimersByTimeAsync(90_001)
+  await rejection
+  expect(cancelled).toBe(true)
+  expect(body.locked).toBe(false)
+  expect(events[0]?.data).toBe('部分结果')
+  expect(fetcher).toHaveBeenCalledTimes(1)
+  vi.useRealTimers()
+})
+
+it('已接收终态但服务器不关闭流时完成收束', async () => {
+  vi.useFakeTimers()
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('event: done\ndata: {}\n\n'))
+    },
+  })
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockResolvedValue(new Response(body, { headers: { 'Content-Type': 'text/event-stream' } })),
+  )
+  const pending = streamChat(chatRequest, new AbortController().signal, () => {})
+  await vi.advanceTimersByTimeAsync(5_001)
+  await expect(pending).resolves.toBeUndefined()
+  expect(body.locked).toBe(false)
+  vi.useRealTimers()
+})

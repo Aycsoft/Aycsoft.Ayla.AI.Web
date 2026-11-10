@@ -189,11 +189,17 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /** 生成后回读服务端持久化结果，补全消息 Id、轨迹和产物。 */
-  async function hydrateActiveConversation() {
+  async function hydrateActiveConversation(expectedMessageId?: string) {
     if (!currentId.value || !useAuthStore().session) return
-    const response = await aiApi.messages(currentId.value)
+    const requestedId = currentId.value
+    const response = await aiApi.messages(requestedId)
+    if (currentId.value !== requestedId) return
     const persisted = Array.isArray(response) ? response : response.Items
-    if (!persisted.length) return
+    if (
+      !persisted.length ||
+      (expectedMessageId && !persisted.some((message) => message.Id === expectedMessageId))
+    )
+      return
     messages.value = persisted.map((message) =>
       mergePersistedBusinessMessage(
         message,
@@ -371,6 +377,8 @@ export const useChatStore = defineStore('chat', () => {
         answer.Status = 'error'
         answer.ErrorMessage = (error as Error).message
         lastError.value = (error as Error).message
+        // 只读恢复已保存消息，不重复提交生成，也不让回读延长按钮忙碌状态。
+        if (!anonymous) void hydrateActiveConversation(answer.Id).catch(() => undefined)
       }
       settleRunningTraces(traces.value, answer.Status === 'stopped' ? 'cancelled' : 'failed')
     } finally {

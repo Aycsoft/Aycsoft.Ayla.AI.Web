@@ -106,11 +106,15 @@ export interface SelectionProject {
     projectId: string
     projectVersion: number
     overview: string
+    gaps?: string[]
+    scopeNotes?: string[]
     businessAssociations?: SelectionBusinessAssociation[]
     analyses: {
       candidateId: string
       recommendation: string
       reason: string
+      facts?: { field: string; value: string; sourceUrl: string; observedAt?: string | null }[]
+      hypotheses?: string[]
       evidenceUrls: string[]
       risks: string[]
       nextActions: string[]
@@ -219,4 +223,67 @@ export const getSelectionProductHistory = async (
       { signal: AbortSignal.timeout(60000) },
     ),
   }
+}
+
+/** 在改变当前编辑状态前校验返回合同，错误对象不能被当作已创建方案。 */
+export function isSelectionProject(value: unknown): value is SelectionProject {
+  if (!value || typeof value !== 'object') return false
+  const project = value as Partial<SelectionProject>
+  const rows = (items: unknown, predicate: (item: Record<string, unknown>) => boolean) =>
+    items == null ||
+    (Array.isArray(items) &&
+      items.every((item) => item && typeof item === 'object' && predicate(item)))
+  const textList = (items: unknown) =>
+    Array.isArray(items) && items.every((item) => typeof item === 'string')
+  const numberOrNull = (item: unknown) =>
+    item == null || (typeof item === 'number' && Number.isFinite(item))
+  const candidateRow = (item: Record<string, unknown>) => typeof item.candidateId === 'string'
+  return (
+    typeof project.id === 'string' &&
+    project.id.length > 0 &&
+    Number.isInteger(project.version) &&
+    Number(project.version) >= 1 &&
+    typeof project.title === 'string' &&
+    typeof project.brief === 'string' &&
+    Array.isArray(project.candidates) &&
+    project.candidates.every(
+      (candidate) =>
+        candidate &&
+        typeof candidate.id === 'string' &&
+        candidate.product &&
+        typeof candidate.product.name === 'string',
+    ) &&
+    rows(project.costs, candidateRow) &&
+    rows(project.specificationBriefs, candidateRow) &&
+    rows(project.trials, candidateRow) &&
+    rows(project.reviews, candidateRow) &&
+    rows(
+      project.costResults,
+      (item) =>
+        candidateRow(item) &&
+        numberOrNull(item.contributionPerUnit) &&
+        numberOrNull(item.marginPercent) &&
+        textList(item.missingFields),
+    ) &&
+    (project.analysis == null ||
+      ((project.analysis.gaps == null || textList(project.analysis.gaps)) &&
+        (project.analysis.scopeNotes == null || textList(project.analysis.scopeNotes)) &&
+        Array.isArray(project.analysis.analyses) &&
+        project.analysis.analyses.every(
+          (item) =>
+            item &&
+            typeof item.candidateId === 'string' &&
+            textList(item.risks) &&
+            textList(item.nextActions) &&
+            textList(item.evidenceUrls) &&
+            (item.hypotheses == null || textList(item.hypotheses)) &&
+            rows(
+              item.facts,
+              (fact) =>
+                typeof fact.field === 'string' &&
+                typeof fact.value === 'string' &&
+                typeof fact.sourceUrl === 'string',
+            ),
+        )))
+  )
 }

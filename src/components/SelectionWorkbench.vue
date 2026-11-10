@@ -32,6 +32,7 @@ import {
 import { ElButton as BaseButton } from 'element-plus'
 import {
   createSelectionProject,
+  isSelectionProject,
   getSelectionProject,
   saveSelectionProject,
   analyzeSelectionProject,
@@ -56,6 +57,12 @@ const exporting = ref(false)
 const history = ref<SelectionProject[]>([])
 const error = ref('')
 const project = ref<SelectionProject>()
+const updatedLabel = computed(() => {
+  const value = project.value?.updatedAt
+  if (!value) return ''
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : `更新于 ${date.toLocaleString('zh-CN')}`
+})
 const activeTab = ref('candidates')
 const selectedId = ref('')
 const savedJson = ref('')
@@ -121,7 +128,9 @@ const decisions = [
 ] as const
 
 function applyProject(value: SelectionProject) {
-  project.value = {
+  // 验证成功前不替换当前方案，首次失败保持空状态，重读失败保留已有编辑。
+  if (!isSelectionProject(value)) throw new Error('方案暂时未能读取，请重新读取。')
+  const nextProject = {
     ...value,
     specificationBriefs: value.specificationBriefs || [],
     costs: value.costs || [],
@@ -129,9 +138,13 @@ function applyProject(value: SelectionProject) {
     reviews: value.reviews || [],
     costResults: value.costResults || [],
   }
+  project.value = nextProject
   if (!value.candidates.some((item) => item.id === selectedId.value))
     selectedId.value = value.candidates[0]?.id || ''
   savedJson.value = JSON.stringify(project.value)
+  // 保存/分析后同步历史选择项，避免仍显示旧标题或旧版本。
+  const historyIndex = history.value.findIndex((item) => item.id === value.id)
+  if (historyIndex >= 0) history.value[historyIndex] = { ...nextProject }
 }
 
 async function load() {
@@ -374,6 +387,23 @@ function addReview() {
   project.value.reviews.push(row)
 }
 
+/** 事实时间缺失时保持空白；不把本次阅读时间当作采集时间。 */
+function factDate(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('zh-CN')
+}
+
+function missingCostLabels(row: SelectionCostScenario) {
+  const labels = new Map<string, string>(costFields)
+  return (costResult(row)?.missingFields || [])
+    .map((field) => {
+      const key = field.charAt(0).toLowerCase() + field.slice(1)
+      return labels.get(key) || (key === 'currency' ? '币种' : field)
+    })
+    .join('、')
+}
+
 function costResult(row: SelectionCostScenario) {
   // 修改尚未保存时不展示上个版本的利润，避免误当本次测算结果。
   if (dirty.value) return undefined
@@ -526,6 +556,18 @@ onBeforeUnmount(() => {
           </p>
           <template v-else-if="project.analysis">
             <p class="selection-analysis-text">{{ project.analysis.overview }}</p>
+            <div v-if="project.analysis.gaps?.length" class="selection-notice" role="note">
+              <strong>尚待补充的依据</strong>
+              <ul class="selection-analysis-list">
+                <li v-for="gap in project.analysis.gaps" :key="gap">{{ gap }}</li>
+              </ul>
+            </div>
+            <div v-if="project.analysis.scopeNotes?.length" class="selection-notice" role="note">
+              <strong>阅读说明</strong>
+              <ul class="selection-analysis-list">
+                <li v-for="note in project.analysis.scopeNotes" :key="note">{{ note }}</li>
+              </ul>
+            </div>
             <p
               v-if="dirty || project.analysis.projectVersion + 1 !== project.version"
               class="selection-notice"
@@ -541,7 +583,41 @@ onBeforeUnmount(() => {
                 project.candidates.find((candidate) => candidate.id === item.candidateId)?.product
                   .name || '商品'
               }}</strong>
-              <p class="selection-analysis-text">{{ item.recommendation }} · {{ item.reason }}</p>
+              <p class="selection-analysis-text">{{ item.recommendation }}</p>
+              <template v-if="item.facts?.length">
+                <h4 class="selection-analysis-label">已记录事实</h4>
+                <ElTable :data="item.facts" size="small" class="selection-facts">
+                  <ElTableColumn prop="field" label="信息" width="170" show-overflow-tooltip />
+                  <ElTableColumn
+                    prop="value"
+                    label="来源页面记录"
+                    min-width="220"
+                    show-overflow-tooltip
+                  />
+                  <ElTableColumn label="来源与采集时间" width="180">
+                    <template #default="{ row }">
+                      <a
+                        v-if="safePublicUrl(row.sourceUrl)"
+                        :href="safePublicUrl(row.sourceUrl)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        >查看来源</a
+                      >
+                      <small v-if="factDate(row.observedAt)" class="selection-fact-date">{{
+                        factDate(row.observedAt)
+                      }}</small>
+                    </template>
+                  </ElTableColumn>
+                </ElTable>
+              </template>
+              <h4 class="selection-analysis-label">待验证判断</h4>
+              <ul
+                v-if="item.hypotheses?.length"
+                class="selection-analysis-list selection-analysis-text"
+              >
+                <li v-for="hypothesis in item.hypotheses" :key="hypothesis">{{ hypothesis }}</li>
+              </ul>
+              <p v-else class="selection-analysis-text">{{ item.reason }}</p>
               <p v-if="item.risks.length" class="selection-notice">
                 需要留意：{{ item.risks.join('；') }}
               </p>
@@ -647,7 +723,11 @@ onBeforeUnmount(() => {
                       · 贡献率 {{ costResult(row)?.marginPercent?.toFixed(1) }}%</span
                     ></template
                   >
-                  <template v-else>费用尚不完整，请补齐后测算。</template>
+                  <template v-else
+                    >费用尚不完整<span v-if="missingCostLabels(row)"
+                      >，待补：{{ missingCostLabels(row) }}</span
+                    >。补齐并保存后测算。</template
+                  >
                 </p>
               </section>
             </template>
@@ -757,9 +837,7 @@ onBeforeUnmount(() => {
     </template>
     <template #footer
       ><div class="selection-footer">
-        <small>{{
-          project ? `更新于 ${new Date(project.updatedAt).toLocaleString('zh-CN')}` : ''
-        }}</small
+        <small>{{ updatedLabel }}</small
         ><ElLink :disabled="loading || saving" @click="load">重新读取</ElLink
         ><BaseButton :disabled="!project || loading || saving" :loading="analyzing" @click="analyze"
           >分析候选</BaseButton
@@ -789,6 +867,23 @@ onBeforeUnmount(() => {
   font-size: 13px;
   line-height: 22px;
   white-space: pre-wrap;
+}
+
+.selection-analysis-label {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.selection-analysis-list {
+  padding-left: 18px;
+  margin: 4px 0 8px;
+}
+
+.selection-fact-date {
+  display: block;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
 }
 
 .selection-evidence {

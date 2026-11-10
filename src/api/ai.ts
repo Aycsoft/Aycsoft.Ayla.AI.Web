@@ -1,4 +1,5 @@
 /** 工作区业务 API 门面；只负责协议映射，页面反馈和状态更新留给 store/调用方。 */
+import { readWithIdleTimeout } from './streamIdle'
 import { apiUrl, mutationHeaders, query, request, ApiError } from './http'
 import { isTerminalSseEvent, SseParser } from './sse'
 import type {
@@ -343,7 +344,14 @@ async function consumeSseResponse(
   try {
     while (true) {
       signal.throwIfAborted()
-      const { value, done } = await reader.read()
+      const { value, done }: ReadableStreamReadResult<Uint8Array> = await readWithIdleTimeout(
+        reader,
+        terminalReceived ? 5_000 : 90_000,
+      ).catch((error) => {
+        if (terminalReceived && error.name === 'AIStreamInterruptedError')
+          return { done: true, value: undefined }
+        throw error
+      })
       signal.throwIfAborted()
       for (const event of parser.push(decoder.decode(value, { stream: !done }), done)) {
         signal.throwIfAborted()
