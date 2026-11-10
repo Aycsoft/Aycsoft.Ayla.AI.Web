@@ -87,5 +87,5 @@ test('消息灰提示直接显示detail，来源默认折叠且不使用红色�
   expect(source).toContain('<span>{{ messageResponseNotice(message)?.detail }}</span>')
   expect(source).not.toContain('inline-error message-response-notice')
   expect(source).not.toContain('messageResponseNotice(message)?.title')
-  expect(source).toMatch(/class="citations">\s*<details>/)
+  expect(source).toMatch(/class="citations">\s*<details\b[^>]*>/)
 })

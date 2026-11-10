@@ -5,6 +5,7 @@ import {
   getActiveSelectionAnalysis,
   getSelectionAnalysisOperation,
   cancelSelectionAnalysisOperation,
+  resumeSelectionAnalysisOperation,
   isSelectionProject,
   saveSelectionProject,
   type SelectionProjectUpdate,
@@ -197,12 +198,48 @@ test('后台分析202受理与恢复取消合同，不把受理当成分析成�
 })
 
 test('刷新读取最近失败终态仍保留active为空，不自动启动新分析', async () => {
-  const latest = { id: 'last', projectId: 'p1', status: 'failed', errorCode: 'analysis_validation_failed' }
-  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ operation: null, latest }), { status: 200, headers: { 'content-type': 'application/json' } }))
+  const latest = {
+    id: 'last',
+    projectId: 'p1',
+    status: 'failed',
+    errorCode: 'analysis_validation_failed',
+  }
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(JSON.stringify({ operation: null, latest }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
   vi.stubGlobal('fetch', fetcher)
   const response = await getActiveSelectionAnalysis('p1')
   expect(response.Item.operation).toBeNull()
   expect(response.Item.latest).toEqual(latest)
   expect(fetcher).toHaveBeenCalledTimes(1)
   expect(fetcher.mock.calls[0]![1].method || 'GET').toBe('GET')
+})
+test('续跑绑定原失败操作与版本，重复点击复用幂等键而非新建分析', async () => {
+  const fetcher = vi
+    .fn()
+    .mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ id: 'resumed', status: 'queued' }), {
+          status: 202,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    )
+  vi.stubGlobal('fetch', fetcher)
+  await resumeSelectionAnalysisOperation('p1', 'failed1', 4, 'resume-key')
+  await resumeSelectionAnalysisOperation('p1', 'failed1', 4, 'resume-key')
+  expect(
+    fetcher.mock.calls.every(
+      ([url]) => url === '/api/workspace/selection-projects/p1/operations/failed1/resume',
+    ),
+  ).toBe(true)
+  expect(fetcher.mock.calls.map(([, init]) => JSON.parse(init.body))).toEqual([
+    { expectedVersion: 4, idempotencyKey: 'resume-key' },
+    { expectedVersion: 4, idempotencyKey: 'resume-key' },
+  ])
 })

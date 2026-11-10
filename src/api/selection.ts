@@ -212,6 +212,7 @@ export interface SelectionAnalysisOperation {
   status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'superseded'
   stage: string
   attempt: number
+  canResume?: boolean
   cancelRequested: boolean
   createdAt: string
   updatedAt: string
@@ -238,10 +239,10 @@ export const analyzeSelectionProject = (
 
 export const getActiveSelectionAnalysis = (id: string, signal?: AbortSignal) =>
   envelope(
-    request<{ operation: SelectionAnalysisOperation | null; latest?: SelectionAnalysisOperation | null }>(
-      `${base}/${encodeURIComponent(id)}/operations/active`,
-      { signal: operationSignal(signal) },
-    ),
+    request<{
+      operation: SelectionAnalysisOperation | null
+      latest?: SelectionAnalysisOperation | null
+    }>(`${base}/${encodeURIComponent(id)}/operations/active`, { signal: operationSignal(signal) }),
   )
 
 export const getSelectionAnalysisOperation = (
@@ -346,3 +347,21 @@ export function isSelectionProject(value: unknown): value is SelectionProject {
         )))
   )
 }
+
+/** 显式续跑失败任务，服务端再次核验原始输入版本与checkpoint。 */
+export const resumeSelectionAnalysisOperation = (
+  id: string,
+  operationId: string,
+  expectedVersion: number,
+  idempotencyKey: string,
+) =>
+  envelope(
+    request<SelectionAnalysisOperation>(
+      `${base}/${encodeURIComponent(id)}/operations/${encodeURIComponent(operationId)}/resume`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ expectedVersion, idempotencyKey }),
+        signal: operationSignal(),
+      },
+    ),
+  )

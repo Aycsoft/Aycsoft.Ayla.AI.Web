@@ -241,7 +241,7 @@ const messageElapsed = (message: Message) => {
             :conversation-id="message.ConversationId || chat.currentId"
           />
           <div v-if="citations(message).length" class="citations">
-            <details>
+            <details :key="`${message.Id}:${message.Status}`">
               <summary>
                 <Icon icon="lucide:book-open-text" />参考来源 · {{ citations(message).length }}
               </summary>

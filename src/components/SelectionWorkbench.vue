@@ -39,6 +39,7 @@ import {
   getActiveSelectionAnalysis,
   getSelectionAnalysisOperation,
   cancelSelectionAnalysisOperation,
+  resumeSelectionAnalysisOperation,
   type SelectionAnalysisOperation,
   listSelectionProjects,
   type SelectionProject,
@@ -463,6 +464,44 @@ async function analyze() {
   }
 }
 
+let resumeRequest: { operationId: string; key: string } | undefined
+/** 续跑仅使用原失败输入；编辑或版本变化必须重新分析，避免复用不相符的结论。 */
+async function resumeAnalysis() {
+  if (
+    !project.value ||
+    !operation.value ||
+    operation.value.status !== 'failed' ||
+    operation.value.canResume !== true ||
+    loading.value ||
+    saving.value ||
+    analyzing.value
+  )
+    return
+  if (dirty.value || project.value.version !== operation.value.expectedVersion) {
+    operationNotice.value = '方案内容已有变化，请先保存，再从头分析；不能继续旧输入的任务。'
+    return
+  }
+  saving.value = true
+  error.value = ''
+  try {
+    if (resumeRequest?.operationId !== operation.value.id)
+      resumeRequest = { operationId: operation.value.id, key: createUuid() }
+    const response = await resumeSelectionAnalysisOperation(
+      project.value.id,
+      operation.value.id,
+      project.value.version,
+      resumeRequest.key,
+    )
+    if (response.Status !== 1 || !response.Item?.id) throw new Error('未能确认续跑状态')
+    operationNotice.value = ''
+    observeOperation(response.Item)
+  } catch {
+    operationNotice.value =
+      '暂时无法继续原任务，请查看进度确认。旧任务没有可复用结果时，可选择从头分析。'
+  } finally {
+    saving.value = false
+  }
+}
 async function cancelAnalysis() {
   if (!project.value || !operation.value || cancelling.value || !analyzing.value) return
   cancelling.value = true
@@ -592,7 +631,18 @@ onBeforeUnmount(() => {
       <span v-if="operation">{{ operationStage }}</span>
       <span v-if="operationNotice"> {{ operationNotice }}</span>
       <ElLink :disabled="loading || saving" @click="restoreAnalysis">查看进度</ElLink>
-<ElLink v-if="operation?.status === 'failed' || operation?.status === 'superseded'" :disabled="loading || saving || analyzing" @click="analyze">重新分析</ElLink>
+      <ElLink
+        v-if="operation?.status === 'failed' && operation.canResume === true"
+        :disabled="loading || saving || analyzing"
+        @click="resumeAnalysis"
+        >继续分析</ElLink
+      >
+      <ElLink
+        v-if="operation?.status === 'failed' || operation?.status === 'superseded'"
+        :disabled="loading || saving || analyzing"
+        @click="analyze"
+        >从头分析</ElLink
+      >
       <BaseButton
         v-if="analyzing"
         size="small"
@@ -622,7 +672,7 @@ onBeforeUnmount(() => {
           class="selection-notice"
         >
           方案条件已变，上次分析保留为旧版本；导出会注明旧版本，不作为当前结论。
-          <ElLink :disabled="loading || saving" @click="analyze">重新分析</ElLink>
+          <ElLink :disabled="loading || saving" @click="analyze">从头分析</ElLink>
         </p>
         <ElTabs v-model="activeTab">
           <ElTabPane label="候选比较" name="candidates">
@@ -698,7 +748,9 @@ onBeforeUnmount(() => {
             正在结合候选证据分析推荐理由、风险和验证事项…
           </p>
           <template v-if="project.analysis">
-<p v-if="operation && operation.status !== 'succeeded'" class="selection-notice">以下是上次保存的分析，不是本轮的新结果。</p>
+            <p v-if="operation && operation.status !== 'succeeded'" class="selection-notice">
+              以下是上次保存的分析，不是本轮的新结果。
+            </p>
             <p class="selection-analysis-text">{{ project.analysis.overview }}</p>
             <div v-if="project.analysis.gaps?.length" class="selection-notice" role="note">
               <strong>尚待补充的依据</strong>
@@ -755,18 +807,18 @@ onBeforeUnmount(() => {
                 </ElTable>
               </template>
               <SelectionClaims v-if="item.claims?.length" :claims="item.claims" />
-<template v-else>
-<h4 class="selection-analysis-label">待验证判断</h4>
-              <ul
-                v-if="item.hypotheses?.length"
-                class="selection-analysis-list selection-analysis-text"
-              >
-                <li v-for="hypothesis in item.hypotheses" :key="hypothesis">{{ hypothesis }}</li>
-              </ul>
-              <p v-else class="selection-analysis-text">{{ item.reason }}</p>
-              <p v-if="item.risks.length" class="selection-notice">
-                需要留意：{{ item.risks.join('；') }}
-              </p>
+              <template v-else>
+                <h4 class="selection-analysis-label">待验证判断</h4>
+                <ul
+                  v-if="item.hypotheses?.length"
+                  class="selection-analysis-list selection-analysis-text"
+                >
+                  <li v-for="hypothesis in item.hypotheses" :key="hypothesis">{{ hypothesis }}</li>
+                </ul>
+                <p v-else class="selection-analysis-text">{{ item.reason }}</p>
+                <p v-if="item.risks.length" class="selection-notice">
+                  需要留意：{{ item.risks.join('；') }}
+                </p>
               </template>
               <SelectionBusinessReferences
                 :associations="project.analysis.businessAssociations"
@@ -990,7 +1042,7 @@ onBeforeUnmount(() => {
           :disabled="!project || loading || saving || analyzing"
           :loading="analyzing || saving"
           @click="analyze"
-          >分析候选</BaseButton
+          >{{ operation?.status === 'failed' ? '从头分析' : '分析候选' }}</BaseButton
         ><ElLink :disabled="!project || loading || saving" @click="exportFile('xlsx')"
           >导出 Excel</ElLink
         ><ElLink :disabled="!project || loading || saving" @click="exportFile('docx')"
