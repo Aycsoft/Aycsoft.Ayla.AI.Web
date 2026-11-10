@@ -53,5 +53,10 @@ export function commerceCards(sources: Citation[], answer = '') {
   )
   const order = (url: string) =>
     answer.indexOf(url) < 0 ? Number.MAX_SAFE_INTEGER : answer.indexOf(url)
-  return result.sort((a, b) => order(a.url) - order(b.url))
+  return result.sort(
+    (a, b) =>
+      order(a.url) - order(b.url) ||
+      (a.product.ClientDisplayIndex ?? Number.MAX_SAFE_INTEGER) -
+        (b.product.ClientDisplayIndex ?? Number.MAX_SAFE_INTEGER),
+  )
 }

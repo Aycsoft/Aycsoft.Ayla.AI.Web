@@ -1,3 +1,4 @@
+import { mergeCommerceEvent } from './commerceStream'
 import { expect, test } from 'vitest'
 import { commerceCards, publicCommerceUrl, mergeCommerceSources } from './commerceCards'
 import type { PublicCommerceProductCard } from '@/types/ai'
@@ -44,4 +45,46 @@ test('薄引用与完整联网来源同URL时保留商品且来源只显示一�
   ])
   expect(sources).toHaveLength(1)
   expect(commerceCards(sources)).toHaveLength(1)
+})
+
+test('同榜单五次入选事件保留五款，重复事件更新不改变顺序', () => {
+  let sources: import('@/types/ai').Citation[] = []
+  for (let i = 1; i <= 5; i++)
+    sources = mergeCommerceEvent(sources, {
+      Url: first.SourceUrl,
+      Engine: 'selected-commerce',
+      Products: [{ ...first, ProductUrl: `https://shop.example/p${i}` }],
+    })
+  sources = mergeCommerceEvent(sources, {
+    Url: first.SourceUrl,
+    Engine: 'selected-commerce',
+    Products: [{ ...first, ProductUrl: 'https://shop.example/p2', DisplayedPrice: 'USD 12' }],
+  })
+  expect(sources).toHaveLength(1)
+  expect(commerceCards(sources).map((card) => card.url)).toEqual(
+    [1, 2, 3, 4, 5].map((i) => `https://shop.example/p${i}`),
+  )
+  expect(commerceCards(sources)[1]!.product.DisplayedPrice).toBe('USD 12')
+})
+
+test('跨平台交错入选保持全局次序，并剔除发现阶段和晚到候选', () => {
+  let sources: import('@/types/ai').Citation[] = [{ Url: first.SourceUrl, Products: [first] }]
+  for (const [site, id] of [
+    ['a', 1],
+    ['b', 2],
+    ['a', 3],
+    ['c', 4],
+    ['b', 5],
+  ] as const) {
+    const url = `https://${site}.example/list`
+    sources = mergeCommerceEvent(sources, {
+      Url: url,
+      Engine: 'selected-commerce',
+      Products: [
+        { Name: String(id), SourceUrl: url, ProductUrl: `https://${site}.example/p${id}` },
+      ],
+    })
+  }
+  sources = mergeCommerceEvent(sources, { Url: first.SourceUrl, Products: [first] })
+  expect(commerceCards(sources).map((card) => card.product.Name)).toEqual(['1', '2', '3', '4', '5'])
 })

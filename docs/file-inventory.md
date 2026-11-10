@@ -2,7 +2,7 @@
 
 由 `node scripts/check-files.mjs --write` 生成。覆盖所有 Git 已跟踪及未忽略的新文件；排除依赖、构建与本地审查产物。职责取自手写文件说明，清单存在不等于业务验收完成。
 
-共 172 个文件。新增/删除文件或修改职责说明后重新生成；人工审查标准见 [代码规范](coding-standards.md)。
+共 225 个文件。新增/删除文件或修改职责说明后重新生成；人工审查标准见 [代码规范](coding-standards.md)。
 
 | 文件                                               | 职责 / 资源用途                                                                          | 验收方式                                             |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -63,44 +63,70 @@
 | `src/api/ai.stream.test.ts`                        | 流传输回归：覆盖 UTF-8 分片、请求身份策略及正常/异常路径的 reader 锁释放。               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/api/ai.ts`                                    | 工作区业务 API 门面；只负责协议映射，页面反馈和状态更新留给 store/调用方。               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/api/ai.upload.test.ts`                        | 附件上传传输契约：验证 Cookie、变更标识及浏览器生成的 multipart 请求；fetch 使用替身。   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/api/externalImageSearch.test.ts`              | externalImageSearch.test.ts                                                              | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/api/externalImageSearch.ts`                   | 复用Cookie与CSRF传输；只传业务字段，真实ERP身份由服务端SSO会话解析。                     | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/api/feedbackContract.test.ts`                 | 结构化反馈回归：验证关联字段独立传输及空白清理，防止退回拼接 Comment 的旧协议。          | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/api/feedbackContract.ts`                      | 结构化反馈协议；会话、模型与截图分别关联，不混入描述文本。                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/api/http.ts`                                  | HTTP 传输边界：统一 Cookie、变更请求标识及后端业务信封，不负责页面提示。                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/api/mediaJobs.ts`                             | 工作台只使用受保护Cookie会话；调用方不能传入owner/provider任务定位。                     | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/api/selection.ts`                             | 选品方案接口沿用工作区会话，不直连ERP或创建业务单据。                                    | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/api/sse.test.ts`                              | SSE 单元回归：覆盖分片、心跳、agent 信封及无内容终态；不依赖真实模型接口。               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/api/sse.ts`                                   | SSE 文本协议解析：分离传输分块、事件信封与消息终态，不直接修改界面状态。                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/api/streamRecovery.test.ts`                   | streamRecovery.test.ts                                                                   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/api/usageContract.test.ts`                    | 用量协议回归：核对鉴权路径、日期参数及服务商实测行聚合，不构造估算用量。                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/api/usageContract.ts`                         | 用量查询与展示聚合；只统计后端上报值，不在前端估算 token。                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ArtifactOutputCard.vue`            | * 消息中的生成资产卡片，依据真实状态展示进度、失败提示或预览。                           | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ArtifactWorkspace.vue`             | * 资产工作台：标签页管理、代码读取、鉴权下载与宽度调整。                                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/BrandLogo.vue`                     | * 统一品牌标识，加载失败依次回退到随包图片和文字。                                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
-| `src/components/ChatComposer.vue`                  | * 消息输入与创作入口，管理会话草稿、附件上传和模型能力。                                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/BusinessResults.vue`               | ERP保护预览必须回到配置的ERP来源；失败显示缺图，不替换成示例或猜测文件地址。             | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/ChatComposer.vue`                  | * 自然语言输入入口，管理会话草稿和附件上传，具体能力由服务端自动编排。                   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/CodeBlockCard.vue`                 | * 代码块复制、局部编辑和隔离运行入口，不在主页面执行生成代码。                           | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/CodePreviewWorkspace.vue`          | * 代码侧边预览容器，使用受限 iframe 承载沙箱文档。                                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/CommerceProductCards.vue`          | 新消息使用已保存候选顺序，旧会话保持现有展示规则。                                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/CompactBusinessTable.vue`          | CompactBusinessTable.vue                                                                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/CompactResults.test.ts`            | SSR 不触发图片懒加载；保留接收的 src 校验真实组件传参，不发网络请求。                    | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ConversationActionDialog.vue`      | * 会话重命名与删除确认表单，不直接调用业务接口。                                         | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ConversationSidebar.vue`           | * 工作区导航与会话历史入口，协调分页、路由、账号弹窗和会话操作。                         | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/EmptyWorkspace.vue`                | * 空会话欢迎区，按登录状态与创作模式展示快捷提示和媒体灵感。                             | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/ExternalImageSearchButton.vue`     | 显式点击才请求外链，立即锁定并预留窗口；失败和卸载均释放未接管的空白页。                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ExternalPasswordDialog.vue`        | * 外部账号密码表单，前端强度提示不能替代服务端身份校验。                                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ExternalProfileDialog.vue`         | * 外部账号资料编辑器，先上传头像取得文件 ID，再提交资料关联。                            | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/FeedbackDialog.vue`                | * 消息反馈表单，收集分类、说明、联系方式及可选截图。                                     | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/GenerationProgressCard.vue`        | * 生成任务占位卡，显示阶段和参考耗时，不据展示进度判断完成。                             | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/MediaJobsPanel.vue`                | 工作台未全量引入Element样式，弹层及按钮需按既有方式显式加载。                            | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/MediaWorkspacePanel.vue`           | * 媒体灵感列表，从共享配置读取图片、视频示例与提示词。                                   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/MessageAttachmentList.vue`         | * 消息附件列表，兼容字段并提供预览、下载与逐项重试。                                     | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/MessageList.vue`                   | * 消息时间线，组合正文、附件、引用、资产、耗时和反馈入口。                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ModelPicker.vue`                   | * 按对话、图片或视频能力过滤模型的受控选择器。                                           | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/OptionPicker.vue`                  | * 带说明文字的轻量受控选项选择器，不自行持久化值。                                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/PendingAgentInput.vue`             | 当前服务只提供下一轮对话，不能把填入草稿宣称为恢复原执行或批准变更。                     | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/PersonalAttentionPanel.vue`        | 跨天停留也更新陈旧标识；仅本地时钟，不轮询后端或抓取网页。                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/PersonalAttentionView.test.ts`     | PersonalAttentionView.test.ts                                                            | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/PersonalAttentionView.vue`         | PersonalAttentionView.vue                                                                | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/PersonalWorkspaceLayout.vue`       | * 知识库、Skill 和笔记共享布局，统一标题、导航和移动侧栏。                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/ProductObservationSummary.vue`     | ProductObservationSummary.vue                                                            | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/README.md`                         | 组件职责与维护约定                                                                       | 文件检查；支持的格式由 Prettier 校验                 |
+| `src/components/ReasoningTimeline.test.ts`         | ReasoningTimeline.test.ts                                                                | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ReasoningTimeline.vue`             | * 会话执行轨迹摘要，只展示经过安全清洗的用户可见步骤。                                   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ResilientMediaPreview.vue`         | * 生成媒体延迟就绪预览，短时退避重试并回收 Blob URL。                                    | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ResourceErrorCard.vue`             | * 资源失败的共享展示卡，统一错误信息与重试入口。                                         | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ResourcePreviewDialog.test.ts`     | 附件预览生命周期回归：旧响应不得在切换、关闭或卸载后重建 Blob URL。                      | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/ResourcePreviewDialog.vue`         | * 附件预览弹窗，通过统一资源访问器加载内容并管理 Blob URL。                              | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/RichMessageContent.vue`            | * 富文本渲染入口，拆分代码围栏并交给独立代码卡片。                                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/SalesComparisonResult.vue`         | SalesComparisonResult.vue                                                                | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/SelectionBusinessReferences.vue`   | 分别展示原工具返回的同类经营事实，不推定同款或跨范围合计。                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/SelectionProductHistory.vue`       | 按已保存候选读取独立观察，不从评价变化推断销量。                                         | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/SelectionWorkbench.vue`            | 选品工作台复用既有会话与下载能力，不创建业务单据。                                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/SourceFavicon.vue`                 | * 引用来源图标，URL 变化重新加载，失败时显示通用图标。                                   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/TokenUsagePanel.vue`               | * 单条消息 Token 用量和模型标识，不推算缺失统计。                                        | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/TracePanel.vue`                    | * 可折叠执行轨迹和资产导航，展示当前步骤及完成数量。                                     | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/UsageSummaryDialog.vue`            | * 账号用量弹窗壳，复用 UsageSummaryPanel 读取和展示统计。                                | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/components/UsageSummaryPanel.vue`             | * 真实账号用量展示，按共享统计契约聚合模型和每日明细。                                   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/salesComparison.test.ts`           | salesComparison.test.ts                                                                  | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/components/salesComparison.ts`                | 不将不完整列表、缺失数字或零基期变化率转换成正常统计；金额仅展示服务端原币种结果。       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/composables/useComposerClearance.test.ts`     | 使用内存元素控制尺寸/滚动，验证观察生命周期；真实浏览器矩形另由布局夹具验证。            | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/composables/useComposerClearance.ts`          | 浮动输入框增高时同步滚动区留白，保护末条回复；只对本会话容器生效。                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/composables/usePersonalAttention.ts`          | usePersonalAttention.ts                                                                  | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/composables/useWorkspaceCollection.test.ts`   | 列表加载公共流程回归：合并刷新、成功赋值、错误保留及重试恢复。                           | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/composables/useWorkspaceCollection.ts`        | 个人工作区列表的读取状态；写入操作仍由业务页面负责。                                     | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/env.d.ts`                                     | / <reference types="vite/client" />                                                      | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
@@ -108,9 +134,11 @@
 | `src/main.ts`                                      | 应用启动入口：加载基础样式与图标，在挂载前按依赖顺序注册状态和路由。                     | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/router.ts`                                    | 工作台路由及登录探测边界；访客可使用聊天，其余工作区需要会话。                           | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/stores/auth.ts`                               | 认证会话唯一来源：区分企业 SSO 与外部邮箱账号，凭证由服务端管理。                        | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/stores/chat.test.ts`                          | chat.test.ts                                                                             | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/stores/chat.ts`                               | 会话状态编排：分页、选择、创建与流式请求生命周期；协议转换见 chatEvents。                | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/stores/chatEvents.test.ts`                    | SSE 状态映射回归：覆盖增量、步骤合并、产物去重与终态保护。                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/stores/chatEvents.ts`                         | * 将服务端 SSE 协议映射为会话消息、执行轨迹与产物。                                      | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/stores/historyRecovery.test.ts`               | historyRecovery.test.ts                                                                  | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/stores/settings.ts`                           | 工作台品牌配置：远端优先，配置服务不可用时保留可渲染默认值。                             | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/styles.css`                                   | 全局样式入口：按原级联顺序加载责任模块，顺序本身属于视觉契约。                           | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/styles/account.css`                           | 内部和外部账号入口、登录表单及窄屏适配。                                                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
@@ -129,22 +157,41 @@
 | `src/types/ai.ts`                                  | 前后端共享传输类型；PascalCase 名称遵循现有 JSON 契约，不在页面层随意改名。              | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/apiTime.test.ts`                        | 时间协议回归：UTC 旧值、显式时区和跨本地午夜的会话分组。                                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/apiTime.ts`                             | API 时间统一解析：历史 MySQL UTC 值可能没有时区，显式偏移和 Z 保持原义。                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/artifactState.test.ts`                  | artifactState.test.ts                                                                    | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/artifactState.ts`                       | 产物状态仅依据服务端结果；过期、失败与权限拒绝不能显示为仍在生成。                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/attachmentReuse.test.ts`                | attachmentReuse.test.ts                                                                  | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/attachmentReuse.ts`                     | 只允许复用已有合法FileId与输入支持类型，发送时服务端仍重新授权。                         | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/backendResource.test.ts`                | 后端文件地址回归：验证下载参数兼容、链接优先级及危险/物理路径拒绝。                      | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/backendResource.ts`                     | 后端资源链接适配及带会话下载；不接受本地文件系统路径。                                   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/businessNarrative.test.ts`              | businessNarrative.test.ts                                                                | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/businessNarrative.ts`                   | 与正文渲染一致地还原实体和转义；不移除链接，避免吞掉未核实的来源。                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/businessResults.test.ts`                | businessResults.test.ts                                                                  | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/businessResults.ts`                     | 优先按调用标识更新；无标识的历史记录才按完整负载兼容去重。                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/commerceCards.test.ts`                  | commerceCards.test.ts                                                                    | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/commerceCards.ts`                       | 同一来源的引用与联网结果合并商品，避免较薄的引用先出现后吞掉完整商品卡。                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/commerceStream.ts`                      | 合并逐条商品事件，保留跨来源展示顺序；入选结果替换发现阶段候选。                         | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/compactBusiness.test.ts`                | compactBusiness.test.ts                                                                  | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/compactBusiness.ts`                     | 只使用已返回的产品字段与系统原文件地址，不用外部商品或另一行填补缺图。                   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/conversationHistory.test.ts`            | 历史列表回归：使用固定本地日历测试分组边界，并验证分页重叠更新与顺序。                   | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/conversationHistory.ts`                 | 历史会话纯数据处理：按本地日历分组、合并分页，不修改输入数组。                           | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/conversationRunStatus.test.ts`          | 运行状态回归：验证后端状态别名映射与当前生成状态优先级。                                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/conversationRunStatus.ts`               | 将多个后端版本的生成状态统一为侧栏显示状态。                                             | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/elapsedTime.test.ts`                    | 耗时文案回归：覆盖零值、非法数值、秒截断以及分钟/小时边界。                              | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
-| `src/utils/elapsedTime.ts`                         | 将毫秒耗时向下取整为 h/m/s 文案；非法或负输入按零处理。                                  | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/elapsedTime.ts`                         | 整秒展示耗时，正数不足一秒单独说明，避免小数秒和假零耗时。                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/emptyConversation.test.ts`              | 空会话复用回归：用消息加载替身验证元数据优先、本地消息保护与创建并发去重。               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/emptyConversation.ts`                   | 空会话复用与创建并发控制；依赖真实消息/元数据，不使用标题猜测。                          | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/executionTrace.test.ts`                 | 执行时间线回归：核对工具分类、公开摘要脱敏、真实计数、终态计时和历史映射。               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/executionTrace.ts`                      | 执行步骤展示适配：只显示公开进度，不把内部推理原文作为用户可见摘要。                     | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/externalAuth.test.ts`                   | 外部注册表单回归：验证邮箱规范化、用途去重和有条件提交其他用途。                         | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/externalAuth.ts`                        | 外部账号表单规范化；此处格式提示不能替代服务端验证码与身份校验。                         | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/externalImageSearch.test.ts`            | externalImageSearch.test.ts                                                              | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/externalImageSearch.ts`                 | 只提交真实文件主键；图片预览链接和Blob URL不能冒充FileId。                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/imageSearchPreview.test.ts`             | imageSearchPreview.test.ts                                                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/imageSearchPreview.ts`                  | 图库预览只接受后端命中的精确作用域与不透明文件ID，旧URL不具备授权语义。                  | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/mediaInspiration.test.ts`               | 媒体空态目录回归：验证显示条件、静态素材路径及参考图/关键帧模式完整性。                  | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/mediaInspiration.ts`                    | 媒体空态示例目录：静态素材是创作参考，不代表当前用户生成结果。                           | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/mediaJobs.test.ts`                      | mediaJobs.test.ts                                                                        | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/mediaJobs.ts`                           | 服务端快照决定可恢复性；不按标题、百分比或前端时间推测供应商终态。                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/messageAttachments.test.ts`             | 历史附件回归：验证字段别名、顶层优先、鉴权路径回退与上传/生成资源汇集。                  | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/messageAttachments.ts`                  | 历史附件兼容层；统一字段与资源面板投影，不改变后端存储记录。                             | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/messageContent.test.ts`                 | 消息输出回归：验证围栏分段、流式未闭合代码、产物分类及 JSON/预览限制；不证明浏览器隔离。 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
@@ -157,6 +204,10 @@
 | `src/utils/navigation.ts`                          | 统一工作区与 ERP 的 hash 路由地址，兼容子目录部署。                                      | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/password.test.ts`                       | 密码提示策略回归：验证字符分类与当前长度要求，不代替服务端认证测试。                     | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/password.ts`                            | 统计小写、大写、数字、符号四类字符，用于外部账号密码强度提示。                           | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/personalAttention.test.ts`              | personalAttention.test.ts                                                                | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/personalAttention.ts`                   | 身份及公开权限数组变化都清空视图，不保存Cookie或读取浏览器凭据。                         | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/productObservation.test.ts`             | productObservation.test.ts                                                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/productObservation.ts`                  | 这里只展示页面声明；不将报价、外部SKU或抓取时间升级为成交/ERP事实。                      | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/reasoningSafety.test.ts`                | 进度脱敏回归：验证已知凭据与提示词片段替换，不宣称穷尽所有敏感内容格式。                 | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/reasoningSafety.ts`                     | 公开进度文本的防御性脱敏；有限模式匹配不替代服务端敏感数据隔离。                         | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/safeCodeRunner.ts`                      | * 浏览器代码示例运行辅助：JSON 校验、iframe 预览及可终止 Worker。                        | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
@@ -164,6 +215,8 @@
 | `src/utils/safeMarkdown.ts`                        | Markdown 展示安全边界：关闭原始 HTML，对链接和图片使用独立白名单。                       | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/streamLifecycle.test.ts`                | 流生命周期回归：验证稳定占位、真实步骤替换和终态收口，不覆盖既有完成结果。               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/streamLifecycle.ts`                     | 流式生成时间线的原地状态更新；真实步骤到达后移除临时占位。                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/suggestedQuestions.test.ts`             | suggestedQuestions.test.ts                                                               | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
+| `src/utils/suggestedQuestions.ts`                  | 建议内容由服务端生成；前端只限制展示格式，不补造默认业务问题。                           | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/theme.test.ts`                          | 主题纯函数回归：验证持久值规范化与确定性切换，不依赖页面或存储。                         | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/theme.ts`                               | 工作区显式主题，不跟随系统自动变化。                                                     | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |
 | `src/utils/uuid.test.ts`                           | UUID 兼容回归：替换并恢复 crypto，验证原生调用与 RFC 4122 v4 位设置。                    | 文件检查；Prettier；ESLint/类型或 CSS 构建；对应测试 |

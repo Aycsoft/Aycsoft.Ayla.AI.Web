@@ -12,7 +12,8 @@ import {
 import { createUuid } from '@/utils/uuid'
 import { applySuggestedQuestions } from '@/utils/suggestedQuestions'
 import { appendBusinessToolResult, normalizeClarification } from '@/utils/businessResults'
-import type { Artifact, Message, ParsedSseEvent, TraceStep } from '@/types/ai'
+import { mergeCommerceEvent } from '@/utils/commerceStream'
+import type { Artifact, Citation, Message, ParsedSseEvent, TraceStep } from '@/types/ai'
 
 /** 兼容历史 SSE 中 PascalCase/camelCase 字段；输入不为对象时按空负载处理。 */
 export const record = (data: unknown) =>
@@ -61,8 +62,12 @@ export function createChatEventHandler(state: ChatEventState) {
         pick(data, 'Content', 'content') || (typeof event.data === 'string' ? event.data : ''),
       )
       updateGenerationPlaceholder(traces.value, '正在生成回答', '内容正在实时返回')
-    } else if (event.event === 'citation' || event.event === 'web-source')
-      (assistantMessage.Citations ||= []).push(data)
+    } else if (event.event === 'web-source')
+      assistantMessage.Citations = mergeCommerceEvent(
+        assistantMessage.Citations || [],
+        data as Citation,
+      )
+    else if (event.event === 'citation') (assistantMessage.Citations ||= []).push(data)
     else if (event.event === 'tool') {
       // 工具第一次出现记录本地开始时间，后续事件只更新同一条轨迹。
       removeGenerationPlaceholder(traces.value)

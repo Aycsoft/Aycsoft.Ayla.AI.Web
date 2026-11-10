@@ -95,6 +95,8 @@ export interface Citation {
 
 /** 公开商品卡只承接工具返回事实，不从目录位置推导销量排名。 */
 export interface PublicCommerceProductCard {
+  /** 客户端流式事件顺序；历史展示优先采用服务端快照。 */
+  ClientDisplayIndex?: number
   Name: string
   SourceUrl: string
   ObservedAt?: string
@@ -152,6 +154,7 @@ export interface TraceStep {
 
 /** 持久化消息及可选生成详情；历史记录可能不含附件、计时或 token 字段。 */
 export interface Message {
+  SelectionSnapshot?: SelectionSnapshot | null
   ToolResult?: BusinessToolResult
   ToolResults?: BusinessToolResult[]
   Clarification?: AgentClarification
@@ -180,6 +183,19 @@ export interface Message {
   InputTokens?: number | null
   OutputTokens?: number | null
   Model?: string | null
+}
+
+export interface SelectionSnapshot {
+  SnapshotId: string
+  Version: number
+  ParentSnapshotId?: string | null
+  Brief: { OriginalRequest: string; CorrectedCategory?: string | null }
+  Candidates: {
+    CandidateId: string
+    DisplayIndex: number
+    Product: PublicCommerceProductCard
+    Source: Citation
+  }[]
 }
 
 /** 保留真实调用标识；同工具重复调用也可能产生两份独立证据。 */

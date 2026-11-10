@@ -22,6 +22,7 @@ import ProductObservationSummary from '@/components/ProductObservationSummary.vu
 import BusinessResults from '@/components/BusinessResults.vue'
 import { businessNarrative } from '@/utils/businessNarrative'
 import CommerceProductCards from '@/components/CommerceProductCards.vue'
+import SelectionWorkbench from '@/components/SelectionWorkbench.vue'
 import { mergeCommerceSources } from '@/utils/commerceCards'
 import PendingAgentInput from '@/components/PendingAgentInput.vue'
 import type { Artifact, Message } from '@/types/ai'
@@ -187,7 +188,20 @@ const messageElapsed = (message: Message) => {
             <RichMessageContent :content="businessNarrative(message)" />
           </div>
           <BusinessResults :message="message" />
-          <CommerceProductCards :sources="citations(message)" :answer="message.Content" />
+          <CommerceProductCards
+            :sources="citations(message)"
+            :answer="message.Content"
+            :snapshot="message.SelectionSnapshot"
+          />
+          <SelectionWorkbench
+            v-if="
+              citations(message).some((source) => source.Products?.length) &&
+              (message.ConversationId || chat.currentId) &&
+              message.Status !== 'streaming'
+            "
+            :conversation-id="message.ConversationId || chat.currentId"
+            :message-id="message.Id"
+          />
           <PendingAgentInput
             :message="message"
             :busy="chat.streaming"

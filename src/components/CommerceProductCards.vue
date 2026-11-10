@@ -1,10 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ElImage } from 'element-plus'
-import type { Citation } from '@/types/ai'
+import type { Citation, SelectionSnapshot } from '@/types/ai'
 import { commerceCards } from '@/utils/commerceCards'
-const props = defineProps<{ sources: Citation[]; answer?: string }>()
-const cards = computed(() => commerceCards(props.sources, props.answer))
+const props = defineProps<{
+  sources: Citation[]
+  answer?: string
+  snapshot?: SelectionSnapshot | null
+}>()
+// 新消息使用已保存候选顺序，旧会话保持现有展示规则。
+const cards = computed(() =>
+  props.snapshot?.Candidates.length
+    ? [...props.snapshot.Candidates]
+        .sort((a, b) => a.DisplayIndex - b.DisplayIndex)
+        .flatMap((candidate) =>
+          commerceCards([{ ...candidate.Source, Products: [candidate.Product] }]),
+        )
+    : commerceCards(props.sources, props.answer),
+)
 /** 采集时间保持来源字段含义，不当成新品日期。 */
 const observedAt = (value?: string) => {
   if (!value) return ''
