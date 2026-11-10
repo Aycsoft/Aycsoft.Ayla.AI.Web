@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 聊天工作区布局及面板联动；会话数据与流式请求由 chat store 管理。 */
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useChatStore } from '@/stores/chat'
@@ -9,6 +9,8 @@ import ConversationSidebar from '@/components/ConversationSidebar.vue'
 import EmptyWorkspace from '@/components/EmptyWorkspace.vue'
 import MessageList from '@/components/MessageList.vue'
 import ChatComposer from '@/components/ChatComposer.vue'
+import AssistantTools from '@/components/AssistantTools.vue'
+import { aiApi } from '@/api/ai'
 import MediaJobsPanel from '@/components/MediaJobsPanel.vue'
 import { useComposerClearance } from '@/composables/useComposerClearance'
 import TracePanel from '@/components/TracePanel.vue'
@@ -16,6 +18,7 @@ import ArtifactWorkspace from '@/components/ArtifactWorkspace.vue'
 import CodePreviewWorkspace from '@/components/CodePreviewWorkspace.vue'
 
 const center = ref<HTMLElement>()
+const composer = ref<InstanceType<typeof ChatComposer>>()
 useComposerClearance(center)
 const chat = useChatStore()
 const route = useRoute()
@@ -60,6 +63,33 @@ const seed = (value: string) => {
   prompt.value = ''
   requestAnimationFrame(() => (prompt.value = value))
 }
+/** 原图上传与聊天走同一服务端流程，生成参数仅属于本次请求。 */
+async function submitCommerceImage(prompt: string, files: File[]) {
+  const attachments = []
+  for (const file of files) attachments.push(await aiApi.upload(file))
+  await chat.send(prompt, attachments, { Mode: 'imageGeneration', ImageGeneration: true })
+}
+async function submitDocumentImage(prompt: string, files: File[]) {
+  const attachments = []
+  for (const file of files) attachments.push(await aiApi.upload(file))
+  await chat.send(prompt, attachments)
+}
+const documentRecognitionResults = computed(() =>
+  chat.messages
+    .filter((item) => item.Role === 'assistant')
+    .map((item) => ({ id: item.Id, content: item.Content || '' })),
+)
+const commerceImageResults = computed(() =>
+  chat.messages
+    .filter((message) => message.Role === 'assistant')
+    .flatMap((message) => [...(message.Artifacts || []), ...(message.AgentRun?.Artifacts || [])])
+    .filter((item) => item.Type === 'image' && ['ready', 'completed'].includes(item.Status))
+    .flatMap((item) => {
+      const url = item.PreviewUrl || item.ContentUrl || item.DownloadUrl
+      return url ? [{ id: item.ArtifactId, name: item.FileName, url }] : []
+    })
+    .filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index),
+)
 </script>
 
 <template>
@@ -76,6 +106,14 @@ const seed = (value: string) => {
         <div class="chat-title">
           <strong>{{ chat.current?.Title || '新任务' }}</strong>
         </div>
+        <AssistantTools
+          :busy="chat.streaming || chat.preparing"
+          :submit-image="submitCommerceImage"
+          :submit-document="submitDocumentImage"
+          :document-results="documentRecognitionResults"
+          :results="commerceImageResults"
+          @conversation="composer?.focus()"
+        />
         <MediaJobsPanel
           :identity-key="
             auth.session
@@ -116,7 +154,7 @@ const seed = (value: string) => {
         @upload="seed('请分析我接下来上传的文件')"
       />
       <MessageList v-else @suggest="seed" />
-      <ChatComposer :seeded-prompt="prompt" />
+      <ChatComposer ref="composer" :seeded-prompt="prompt" />
     </section>
     <TracePanel :open="progressOpen" @toggle="progressOpen = !progressOpen" />
     <ArtifactWorkspace

@@ -235,6 +235,7 @@ export interface MessagePage {
 
 /** 已登录业务会话请求；上下文附件必须引用已上传文件。 */
 export interface ChatRequest {
+  Options?: { Mode: 'imageGeneration'; ImageGeneration: true }
   ConversationId: string
   Message: string
   AssistantId: string

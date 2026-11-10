@@ -57,7 +57,7 @@ import SelectionProductHistory from './SelectionProductHistory.vue'
 import SelectionClaims from './SelectionClaims.vue'
 import SelectionBusinessReferences from './SelectionBusinessReferences.vue'
 
-const props = defineProps<{ conversationId?: string; messageId?: string }>()
+const props = defineProps<{ conversationId?: string; messageId?: string; hideEntry?: boolean }>()
 const visible = ref(false)
 const loading = ref(false)
 const saving = ref(false)
@@ -595,12 +595,18 @@ onBeforeUnmount(() => {
   requestVersion++
   stopOperationPolling()
 })
+defineExpose({ open })
 </script>
 
 <template>
-  <BaseButton size="small" :loading="loading" class="selection-entry" @click="open">{{
-    props.messageId ? '选品方案' : '我的选品方案'
-  }}</BaseButton>
+  <BaseButton
+    v-if="!props.hideEntry"
+    size="small"
+    :loading="loading"
+    class="selection-entry"
+    @click="open"
+    >{{ props.messageId ? '选品方案' : '我的选品方案' }}</BaseButton
+  >
   <ElDrawer
     v-model="visible"
     title="选品方案"

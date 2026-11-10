@@ -160,6 +160,7 @@ const keydown = (event: KeyboardEvent) => {
     void submit()
   }
 }
+defineExpose({ focus: () => nextTick(() => input.value?.focus()) })
 </script>
 
 <template>

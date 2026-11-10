@@ -11,7 +11,6 @@ import { useChatStore } from '@/stores/chat'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 import BrandLogo from '@/components/BrandLogo.vue'
-import SelectionWorkbench from '@/components/SelectionWorkbench.vue'
 import ExternalPasswordDialog from '@/components/ExternalPasswordDialog.vue'
 import ConversationActionDialog from '@/components/ConversationActionDialog.vue'
 import ExternalProfileDialog from '@/components/ExternalProfileDialog.vue'
@@ -174,7 +173,6 @@ const toggleTheme = () => {
       <button title="搜索真实会话" @click="searchOpen = !searchOpen">
         <Icon icon="lucide:search" /><span>搜索</span>
       </button>
-      <SelectionWorkbench v-if="!collapsed" />
       <label v-if="searchOpen && !collapsed" class="sidebar-search"
         ><Icon icon="lucide:search" /><input
           v-model="keyword"

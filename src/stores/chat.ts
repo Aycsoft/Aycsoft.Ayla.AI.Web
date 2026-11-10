@@ -22,6 +22,7 @@ import type {
   Artifact,
   Assistant,
   Attachment,
+  ChatRequest,
   Conversation,
   Message,
   ParsedSseEvent,
@@ -272,18 +273,22 @@ export const useChatStore = defineStore('chat', () => {
    * 发送流程：校验权限 → 准备消息/占位轨迹 → 消费 SSE → 回读持久化 → 统一收尾。
    * 本地消息先进入响应式数组，再使用其中的代理对象接收增量，保证界面实时更新。
    */
-  async function send(text: string, attachments: Attachment[]) {
+  async function send(text: string, attachments: Attachment[], options?: ChatRequest['Options']) {
     if (preparing.value || streaming.value || !text.trim()) return
     preparing.value = true
     try {
-      await sendRequest(text, attachments)
+      await sendRequest(text, attachments, options)
     } finally {
       preparing.value = false
     }
   }
 
   /** 创建会话至流结束共用同一提交锁，防止首轮双击或重试并发重复执行。 */
-  async function sendRequest(text: string, attachments: Attachment[]) {
+  async function sendRequest(
+    text: string,
+    attachments: Attachment[],
+    options?: ChatRequest['Options'],
+  ) {
     loginRequired.value = false
     const anonymous = !useAuthStore().session
     if (anonymous && attachments.length) {
@@ -346,6 +351,7 @@ export const useChatStore = defineStore('chat', () => {
           {
             ConversationId: currentId.value,
             Message: text.trim(),
+            Options: options,
             AssistantId: current.value?.AssistantId || currentAssistant.Id,
             PageContext: {
               Path: window.location.pathname,

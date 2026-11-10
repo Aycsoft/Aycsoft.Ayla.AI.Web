@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ElImage } from 'element-plus'
+import { ElImage, ElTable, ElTableColumn } from 'element-plus'
 import type { Citation, SelectionSnapshot } from '@/types/ai'
 import { commerceCards } from '@/utils/commerceCards'
 const props = defineProps<{
@@ -28,121 +28,115 @@ const observedAt = (value?: string) => {
 }
 </script>
 <template>
-  <section v-if="cards.length" class="commerce-cards" aria-label="本次检索的商品">
+  <section v-if="cards.length" class="product-rows" aria-label="本次检索的商品">
     <header>
-      <strong>本次找到的商品</strong><small>{{ cards.length }} 款</small>
+      <strong>本次找到的商品</strong><span>{{ cards.length }} 款</span>
     </header>
-    <div class="commerce-cards__grid">
-      <article v-for="item in cards" :key="item.url">
-        <a
-          :href="item.url"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="item.product.Name"
-          class="commerce-cards__image"
-        >
-          <ElImage v-if="item.image" :src="item.image" fit="contain" loading="lazy"
-            ><template #error><small>图片暂不可用</small></template></ElImage
-          ><small v-else>来源未提供图片</small>
-        </a>
-        <small
-          >{{ item.product.Platform || item.host
-          }}<template v-if="item.product.ObservationKind === 'catalog_entry'">
-            · 站方目录收录</template
-          ><template v-else-if="item.product.ObservationKind === 'search_index'">
-            · 公开商品索引</template
-          ></small
-        >
-        <span
-          v-if="
-            item.product.Rank != null &&
-            !['catalog_entry', 'search_index'].includes(item.product.ObservationKind || '')
-          "
-          >榜单 #{{ item.product.Rank }}</span
-        >
-        <a
-          class="commerce-cards__name"
-          :href="item.url"
-          target="_blank"
-          rel="noopener noreferrer"
-          :title="item.product.Name"
-          >{{ item.product.Name }}</a
-        >
-        <b v-if="item.product.DisplayedPrice">页面显示价 {{ item.product.DisplayedPrice }}</b>
-        <span v-if="item.product.Rating != null || item.product.ReviewCount != null"
-          ><template v-if="item.product.Rating != null">{{ item.product.Rating }} 分</template
-          ><template v-if="item.product.ReviewCount != null">
-            · {{ item.product.ReviewCount }} 条评价</template
-          ></span
-        >
-        <small v-if="item.product.PurchaseBadge">{{ item.product.PurchaseBadge }}</small>
-        <a :href="item.sourceUrl" target="_blank" rel="noopener noreferrer"
-          >来源 {{ item.sourceIndex + 1 }} · {{ item.host }}</a
-        >
-        <small v-if="observedAt(item.product.ObservedAt)"
-          >采集 {{ observedAt(item.product.ObservedAt) }}</small
-        >
-      </article>
-    </div>
+    <ElTable :data="cards" size="small" table-layout="fixed">
+      <ElTableColumn label="图片" width="72"
+        ><template #default="{ row: item }"
+          ><ElImage
+            :src="item.image"
+            fit="contain"
+            :preview-src-list="item.image ? [item.image] : []"
+            preview-teleported
+            loading="lazy"
+            ><template #error><span class="product-rows__empty">暂无图</span></template></ElImage
+          ></template
+        ></ElTableColumn
+      >
+      <ElTableColumn label="商品" min-width="210"
+        ><template #default="{ row: item }"
+          ><a
+            class="product-rows__name"
+            :href="item.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            :title="item.product.Name"
+            >{{ item.product.Name }}</a
+          ><small v-if="item.product.PurchaseBadge">{{
+            item.product.PurchaseBadge
+          }}</small></template
+        ></ElTableColumn
+      >
+      <ElTableColumn label="平台 / 排名" width="115"
+        ><template #default="{ row: item }"
+          ><span>{{ item.product.Platform || item.host }}</span
+          ><small
+            v-if="
+              item.product.Rank != null &&
+              !['catalog_entry', 'search_index'].includes(item.product.ObservationKind || '')
+            "
+            >榜单 #{{ item.product.Rank }}</small
+          ><small v-else-if="item.product.ObservationKind === 'catalog_entry'"
+            >目录商品</small
+          ></template
+        ></ElTableColumn
+      >
+      <ElTableColumn label="页面价格" width="120"
+        ><template #default="{ row: item }">{{
+          item.product.DisplayedPrice || '—'
+        }}</template></ElTableColumn
+      >
+      <ElTableColumn label="评分 / 评价" width="105"
+        ><template #default="{ row: item }"
+          ><span v-if="item.product.Rating != null">{{ item.product.Rating }} 分</span
+          ><small v-if="item.product.ReviewCount != null"
+            >{{ item.product.ReviewCount }} 条评价</small
+          ></template
+        ></ElTableColumn
+      >
+      <ElTableColumn label="来源" width="140"
+        ><template #default="{ row: item }"
+          ><a :href="item.sourceUrl" target="_blank" rel="noopener noreferrer">{{ item.host }}</a
+          ><small v-if="item.product.ObservedAt">{{
+            observedAt(item.product.ObservedAt)
+          }}</small></template
+        ></ElTableColumn
+      >
+    </ElTable>
   </section>
 </template>
 <style scoped>
-.commerce-cards {
-  margin: 16px 0;
+.product-rows {
+  margin: 14px 0;
   font-size: 13px;
-}
-.commerce-cards header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.commerce-cards__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
-  gap: 12px;
-}
-.commerce-cards article {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
   min-width: 0;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
 }
-.commerce-cards small {
-  font-size: 12px;
-  color: var(--muted);
+.product-rows header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
 }
-.commerce-cards a {
-  color: var(--text);
+.product-rows header span,
+.product-rows small {
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+}
+.product-rows small {
+  display: block;
+  line-height: 1.5;
+}
+.product-rows .el-image {
+  width: 52px;
+  height: 52px;
+  vertical-align: middle;
+}
+.product-rows a {
+  color: var(--el-color-primary);
   text-decoration: none;
 }
-.commerce-cards a:hover {
-  color: var(--primary);
-}
-.commerce-cards b {
-  font-size: 12px;
-  font-weight: 500;
-}
-.commerce-cards__image {
-  height: 135px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface);
-}
-.commerce-cards__image .el-image {
-  width: 100%;
-  height: 100%;
-}
-.commerce-cards__name {
+.product-rows__name {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 36px;
-  line-height: 18px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.product-rows__empty {
+  font-size: 11px;
+  color: var(--el-text-color-placeholder);
 }
 </style>
