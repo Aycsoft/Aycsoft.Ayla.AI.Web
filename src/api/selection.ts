@@ -238,7 +238,7 @@ export const analyzeSelectionProject = (
 
 export const getActiveSelectionAnalysis = (id: string, signal?: AbortSignal) =>
   envelope(
-    request<{ operation: SelectionAnalysisOperation | null }>(
+    request<{ operation: SelectionAnalysisOperation | null; latest?: SelectionAnalysisOperation | null }>(
       `${base}/${encodeURIComponent(id)}/operations/active`,
       { signal: operationSignal(signal) },
     ),

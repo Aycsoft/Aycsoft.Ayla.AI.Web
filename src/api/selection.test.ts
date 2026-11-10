@@ -195,3 +195,14 @@ test('后台分析202受理与恢复取消合同，不把受理当成分析成�
     ['/api/workspace/selection-projects/p-1/operations/op-1/cancel', 'POST'],
   ])
 })
+
+test('刷新读取最近失败终态仍保留active为空，不自动启动新分析', async () => {
+  const latest = { id: 'last', projectId: 'p1', status: 'failed', errorCode: 'analysis_validation_failed' }
+  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ operation: null, latest }), { status: 200, headers: { 'content-type': 'application/json' } }))
+  vi.stubGlobal('fetch', fetcher)
+  const response = await getActiveSelectionAnalysis('p1')
+  expect(response.Item.operation).toBeNull()
+  expect(response.Item.latest).toEqual(latest)
+  expect(fetcher).toHaveBeenCalledTimes(1)
+  expect(fetcher.mock.calls[0]![1].method || 'GET').toBe('GET')
+})

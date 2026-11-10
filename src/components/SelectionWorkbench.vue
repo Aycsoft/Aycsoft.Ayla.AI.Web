@@ -49,6 +49,7 @@ import {
 } from '@/api/selection'
 import { publicCommerceUrl as safePublicUrl } from '@/utils/commerceCards'
 import { downloadBackendResource } from '@/utils/backendResource'
+import { selectionOperationNotice } from '@/utils/selectionOperation'
 import { createSelectionPoller } from '@/utils/selectionPoller'
 import { createUuid } from '@/utils/uuid'
 import SelectionProductHistory from './SelectionProductHistory.vue'
@@ -396,11 +397,7 @@ function observeOperation(value: SelectionAnalysisOperation) {
         if (dirty.value)
           operationNotice.value = '分析结果已保存。当前编辑仍保留，请保存或重新读取后查看。'
         else applyProject(response.Item)
-      } else if (result.status === 'superseded') {
-        operationNotice.value = '方案已有更新，本次分析未覆盖新版本。请重新读取后再分析。'
-      } else if (result.status === 'cancelled')
-        operationNotice.value = '分析已取消，已有方案和分析保持不变。'
-      else operationNotice.value = '本次分析暂未完成，已有方案仍在，可以继续编辑或重新分析。'
+      } else operationNotice.value = selectionOperationNotice(result.status, result.errorCode)
       pendingStartKey = undefined
       return false
     },
@@ -420,7 +417,7 @@ async function restoreAnalysis() {
     if (generation !== operationGeneration || project.value?.id !== projectId || !visible.value)
       return
     if (response.Status !== 1 || !response.Item) throw new Error('暂时无法读取分析进度')
-    const active = response.Item.operation
+    const active = response.Item.operation || response.Item.latest
     if (active) observeOperation(active)
     else {
       analyzing.value = false
@@ -609,6 +606,7 @@ onBeforeUnmount(() => {
       <span v-if="operation">{{ operationStage }}</span>
       <span v-if="operationNotice"> {{ operationNotice }}</span>
       <ElLink :disabled="loading || saving" @click="restoreAnalysis">查看进度</ElLink>
+<ElLink v-if="operation?.status === 'failed' || operation?.status === 'superseded'" :disabled="loading || saving || analyzing" @click="analyze">重新分析</ElLink>
       <BaseButton
         v-if="analyzing"
         size="small"
@@ -714,6 +712,7 @@ onBeforeUnmount(() => {
             正在结合候选证据分析推荐理由、风险和验证事项…
           </p>
           <template v-if="project.analysis">
+<p v-if="operation && operation.status !== 'succeeded'" class="selection-notice">以下是上次保存的分析，不是本轮的新结果。</p>
             <p class="selection-analysis-text">{{ project.analysis.overview }}</p>
             <div v-if="project.analysis.gaps?.length" class="selection-notice" role="note">
               <strong>尚待补充的依据</strong>
