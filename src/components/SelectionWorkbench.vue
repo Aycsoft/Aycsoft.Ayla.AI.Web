@@ -49,7 +49,7 @@ import {
 } from '@/api/selection'
 import { publicCommerceUrl as safePublicUrl } from '@/utils/commerceCards'
 import { downloadBackendResource } from '@/utils/backendResource'
-import { selectionOperationNotice } from '@/utils/selectionOperation'
+import { selectionOperationNotice, selectionOperationTitle } from '@/utils/selectionOperation'
 import { createSelectionPoller } from '@/utils/selectionPoller'
 import { createUuid } from '@/utils/uuid'
 import SelectionProductHistory from './SelectionProductHistory.vue'
@@ -66,21 +66,7 @@ const operation = ref<SelectionAnalysisOperation>()
 const operationNotice = ref('')
 let operationPoller: { stop: () => void } | undefined
 let operationGeneration = 0
-const stageLabels: Record<string, string> = {
-  queued: '分析任务已排队',
-  collecting_evidence: '正在收集市场与内部资料',
-  analyzing: '正在分析候选并核对依据',
-  saving: '正在保存分析结果',
-  completed: '分析结果已保存',
-  cancelled: '分析已取消',
-  failed: '本次分析暂未完成',
-  superseded: '方案已有更新',
-}
-const operationStage = computed(() =>
-  operation.value?.cancelRequested && operationIsActive(operation.value)
-    ? '正在取消分析，已保存方案会保留'
-    : stageLabels[operation.value?.stage || ''] || '正在处理选品方案',
-)
+const operationStage = computed(() => selectionOperationTitle(operation.value))
 let pendingStartKey: { projectId: string; version: number; key: string } | undefined
 const exporting = ref(false)
 const history = ref<SelectionProject[]>([])
